@@ -1,0 +1,13 @@
+# PyCharm
+.idea/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 环境变量
+.env
+
+# 输出目录
+output/
