@@ -1,13 +1,22 @@
-from utils.llm import ask_llm
-import config
+from configs.skills import SKILLS
 
-print(config.__file__)
-
-if __name__ == "__main__":
+from utils.skill_engine import SkillEngine
 
 
-    question = "你好，请介绍一下自己"
+requirement = """
+需求：
 
-    result = ask_llm(question)
+用户每天签到一次。
 
-    print(result)
+签到奖励100金币。
+
+连续签到7天奖励500金币。
+"""
+
+
+analysis = SkillEngine.run(
+    SKILLS["analysis"],
+    requirement
+)
+
+print(analysis)
