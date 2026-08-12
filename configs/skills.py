@@ -1,5 +1,8 @@
 SKILLS = {
 
+    "parser":
+        "skills/parser/requirement-preprocessor.skill.md",
+
     "analysis":
         "skills/analysis/requirement-analysis.skill.md",
 
