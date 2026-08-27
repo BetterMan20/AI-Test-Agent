@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Requirement Analysis Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "modules"
+  ],
+  "$defs": {
+    "rule_item": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "rule"],
+          "properties": {
+            "source": { "type": "string" },
+            "rule": { "type": "string" }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "business_context",
+          "preconditions",
+          "business_rules",
+          "state_rules",
+          "data_rules",
+          "time_rules",
+          "source_rules",
+          "constraints",
+          "ambiguities"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "business_context": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "preconditions": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "business_rules": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "state_rules": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "data_rules": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "time_rules": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "source_rules": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "constraints": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule_item" }
+          },
+          "ambiguities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "question",
+                "context"
+              ],
+              "properties": {
+                "question": { "type": "string" },
+                "context": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

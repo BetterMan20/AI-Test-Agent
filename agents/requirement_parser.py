@@ -6,11 +6,16 @@ class RequirementParser:
 
     def run(self, requirement):
 
-        print("========== parser ==========")
+        print("========== Requirement Parser ==========")
 
         result = SkillEngine.run(
-            SKILLS["parser"],
-            requirement
+            skill_path=SKILLS["parser"],
+            user_input=requirement,
+            output_mode="text"
+        )
+
+        print(
+            "Requirement Parser 输出完成"
         )
 
         return result

@@ -6,7 +6,7 @@
     "project",
     "modules"
   ],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "project": {
       "type": "string"
@@ -19,7 +19,7 @@
           "name",
           "testcases"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "name": {
             "type": "string"
@@ -32,7 +32,7 @@
                 "title",
                 "steps"
               ],
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "title": {
                   "type": "string"
@@ -46,7 +46,7 @@
                       "action",
                       "expected"
                     ],
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                       "action": {
                         "type": "string"

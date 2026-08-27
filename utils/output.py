@@ -1,3 +1,4 @@
+import json
 import os
 
 
@@ -8,12 +9,30 @@ class Output:
 
         os.makedirs("output", exist_ok=True)
 
+        filepath = os.path.join(
+            "output",
+            filename
+        )
+
         with open(
-            f"output/{filename}",
+            filepath,
             "w",
             encoding="utf-8"
         ) as f:
 
-            f.write(content)
+            if isinstance(content, (dict, list)):
 
-        print(f"{filename} 已保存")
+                json.dump(
+                    content,
+                    f,
+                    ensure_ascii=False,
+                    indent=2
+                )
+
+            else:
+
+                f.write(str(content))
+
+        print(f"输出已保存：{filepath}")
+
+        return filepath

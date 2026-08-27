@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-test-agent.local/schemas/test_design.schema.json",
+  "title": "AI Test Agent - Test Design Schema",
+  "description": "Production-level schema for Test Design output. Defines test objectives, test conditions, test methods, coverage dimensions, requirement traceability and blocked designs between Requirement Analysis and Test Case Generator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "design_summary",
+    "coverage",
+    "modules",
+    "blocked_designs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "design_summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/module"
+      }
+    },
+    "blocked_designs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blockedDesign"
+      }
+    }
+  },
+  "$defs": {
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_rules",
+        "covered_rules",
+        "coverage_rate",
+        "uncovered_rules"
+      ],
+      "properties": {
+        "requirement_rules": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "covered_rules": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "uncovered_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "test_designs"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "test_designs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/testDesign"
+          }
+        }
+      }
+    },
+
+    "testDesign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_id",
+        "status",
+        "test_object",
+        "test_goal",
+        "requirement_refs",
+        "risk_level",
+        "test_methods",
+        "conditions",
+        "data_dimensions",
+        "time_dimensions",
+        "state_dimensions",
+        "source_dimensions",
+        "scenario",
+        "expected_behavior",
+        "coverage_targets"
+      ],
+      "properties": {
+        "design_id": {
+          "type": "string",
+          "pattern": "^B?D[0-9]{3,}$"
+        },
+
+        "status": {
+          "type": "string",
+          "const": "READY"
+        },
+
+        "test_object": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "test_goal": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "requirement_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+
+        "risk_level": {
+          "type": "string",
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
+
+        "test_methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "normal_flow",
+              "equivalence_partitioning",
+              "boundary_value",
+              "state_transition",
+              "decision_table",
+              "cause_effect",
+              "condition_combination",
+              "error_guessing",
+              "scenario",
+              "data_combination",
+              "time_boundary",
+              "state_time",
+              "state_condition",
+              "source_condition",
+              "cross_module"
+            ]
+          }
+        },
+
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/designCondition"
+          }
+        },
+
+        "data_dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+
+        "time_dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+
+        "state_dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stateDimension"
+          }
+        },
+
+        "source_dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "expected_behavior": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+
+        "coverage_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/coverageTarget"
+          }
+        }
+      }
+    },
+
+    "designCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "precondition",
+            "input",
+            "state",
+            "data",
+            "time",
+            "source",
+            "constraint"
+          ]
+        }
+      }
+    },
+
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "values"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+
+    "stateDimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+
+    "coverageTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "target"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "requirement_rule",
+            "business_rule",
+            "state",
+            "boundary",
+            "condition",
+            "data",
+            "time",
+            "source",
+            "cross_module",
+            "risk",
+            "scenario"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+
+    "blockedDesign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_id",
+        "reason",
+        "requirement_refs"
+      ],
+      "properties": {
+        "design_id": {
+          "type": "string",
+          "pattern": "^B?D[0-9]{3,}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirement_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

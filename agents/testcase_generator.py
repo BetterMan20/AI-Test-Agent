@@ -4,13 +4,13 @@ from utils.skill_engine import SkillEngine
 
 class TestCaseGenerator:
 
-    def run(self, analysis):
+    def run(self, design):
 
-        print("========== testcase generator ==========")
+        print("========== Test Case Generator ==========")
 
-        result = SkillEngine.run(
+        return SkillEngine.run(
             SKILLS["generation"],
-            analysis
+            design,
+            "schema/test_case.schema.json",
+            output_mode="json"
         )
-
-        return result

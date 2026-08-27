@@ -1,17 +1,11 @@
 SKILLS = {
+    "parser": "skills/requirement-preprocessor.skill.md",
 
-    "parser":
-        "skills/parser/requirement-preprocessor.skill.md",
+    "analysis": "skills/requirement-analysis.skill.md",
 
-    "analysis":
-        "skills/analysis/requirement-analysis.skill.md",
+    "design": "skills/test-design.skill.md",
 
-    "generation":
-        "skills/generation/test-case-generator.skill.md",
+    "generation": "skills/test-case-generator.skill.md",
 
-    "review":
-        "skills/review/requirement-review.skill.md",
-
-    "validation":
-        "skills/validation/business-validator.skill.md"
+    "validation": "skills/test-case-validator.skill.md",
 }

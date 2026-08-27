@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-test-agent.local/schemas/validation_result.schema.json",
+  "title": "Test Case Validation Result Schema",
+  "description": "Production-level schema for validating Requirement Analysis, Test Design and Generated Test Cases.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "summary",
+    "coverage",
+    "quality",
+    "issues",
+    "validated_testcases"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "quality": {
+      "$ref": "#/$defs/quality"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "validated_testcases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validatedTestCase"
+      }
+    }
+  },
+  "$defs": {
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_rules",
+        "covered_requirement_rules",
+        "requirement_coverage_rate",
+        "design_count",
+        "covered_designs",
+        "design_coverage_rate",
+        "uncovered_requirements",
+        "uncovered_designs"
+      ],
+      "properties": {
+        "requirement_rules": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "covered_requirement_rules": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requirement_coverage_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "design_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "covered_designs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "design_coverage_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "uncovered_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uncovered_designs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "traceability",
+        "correctness",
+        "completeness",
+        "executability",
+        "verifiability",
+        "extrapolation",
+        "duplication"
+      ],
+      "properties": {
+        "traceability": {
+          "$ref": "#/$defs/qualityStatus"
+        },
+        "correctness": {
+          "$ref": "#/$defs/qualityStatus"
+        },
+        "completeness": {
+          "$ref": "#/$defs/qualityStatus"
+        },
+        "executability": {
+          "$ref": "#/$defs/qualityStatus"
+        },
+        "verifiability": {
+          "$ref": "#/$defs/qualityStatus"
+        },
+        "extrapolation": {
+          "$ref": "#/$defs/qualityStatus"
+        },
+        "duplication": {
+          "$ref": "#/$defs/qualityStatus"
+        }
+      }
+    },
+    "qualityStatus": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "PARTIAL"
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_id",
+        "type",
+        "severity",
+        "status",
+        "problem",
+        "evidence",
+        "suggestion"
+      ],
+      "properties": {
+        "issue_id": {
+          "type": "string",
+          "pattern": "^V[0-9]{3,}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "requirement_extrapolation",
+            "requirement_missing",
+            "requirement_traceability_failure",
+            "design_traceability_failure",
+            "design_not_implemented",
+            "incorrect_test_condition",
+            "incorrect_expected_result",
+            "missing_expected_result",
+            "unexecutable_step",
+            "ambiguous_step",
+            "ambiguous_expected_result",
+            "boundary_missing",
+            "state_coverage_missing",
+            "condition_coverage_missing",
+            "data_coverage_missing",
+            "time_coverage_missing",
+            "source_coverage_missing",
+            "cross_module_coverage_missing",
+            "duplicate_testcase",
+            "duplicate_design",
+            "invalid_test_method",
+            "invalid_test_data",
+            "invalid_state",
+            "invalid_time",
+            "schema_violation",
+            "blocked_by_requirement_ambiguity",
+            "other"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "OPEN",
+            "FIXED",
+            "IGNORED"
+          ]
+        },
+        "module": {
+          "type": "string"
+        },
+        "testcase_id": {
+          "type": "string"
+        },
+        "design_id": {
+          "type": "string"
+        },
+        "requirement_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "problem": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suggestion": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "validatedTestCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "testcase_id",
+        "status",
+        "requirement_refs",
+        "design_refs",
+        "checks"
+      ],
+      "properties": {
+        "testcase_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED"
+          ]
+        },
+        "requirement_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "design_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "traceability",
+            "correctness",
+            "executability",
+            "verifiability",
+            "requirement_compliance",
+            "design_compliance",
+            "duplication"
+          ],
+          "properties": {
+            "traceability": {
+              "$ref": "#/$defs/qualityStatus"
+            },
+            "correctness": {
+              "$ref": "#/$defs/qualityStatus"
+            },
+            "executability": {
+              "$ref": "#/$defs/qualityStatus"
+            },
+            "verifiability": {
+              "$ref": "#/$defs/qualityStatus"
+            },
+            "requirement_compliance": {
+              "$ref": "#/$defs/qualityStatus"
+            },
+            "design_compliance": {
+              "$ref": "#/$defs/qualityStatus"
+            },
+            "duplication": {
+              "$ref": "#/$defs/qualityStatus"
+            }
+          }
+        }
+      }
+    }
+  }
+}
