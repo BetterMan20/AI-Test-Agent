@@ -129,45 +129,52 @@ class XMindExporter:
             print(f"跳过（无法解析 JSON）：{json_file}")
             return
 
-        root_text = data.get("summary", "需求分析")[:50]
-        modules = []
+        root_text = "需求分析"
+        children = []
 
-        for mod in data.get("modules", []):
-            mod_node = {"text": mod.get("name", ""), "children": []}
+        field_labels = [
+            ("actors", "参与者"),
+            ("rules", "业务规则"),
+            ("states", "状态"),
+            ("relations", "关系"),
+            ("constraints", "约束"),
+        ]
 
-            field_labels = [
-                ("business_context", "业务上下文"),
-                ("preconditions", "前置条件"),
-                ("business_rules", "业务规则"),
-                ("state_rules", "状态规则"),
-                ("data_rules", "数据规则"),
-                ("time_rules", "时间规则"),
-                ("source_rules", "来源规则"),
-                ("constraints", "约束"),
-                ("ambiguities", "歧义"),
-            ]
+        for field, label in field_labels:
+            items = data.get(field, [])
+            if not items:
+                continue
+            field_node = {"text": f"{label}（{len(items)}）", "children": []}
+            for item in items:
+                if field == "actors":
+                    field_node["children"].append({
+                        "text": f"{item.get('id', '')} {item.get('name', '')}",
+                        "children": [f"source: {', '.join(item.get('source_facts', []))}"]
+                    })
+                elif field == "rules":
+                    field_node["children"].append({
+                        "text": f"{item.get('id', '')} [{item.get('confidence', '')}] {item.get('content', '')[:60]}",
+                        "children": [f"source: {', '.join(item.get('source_facts', []))}"]
+                    })
+                elif field == "states":
+                    desc = item.get('description', '')
+                    field_node["children"].append({
+                        "text": f"{item.get('id', '')} {item.get('name', '')}",
+                        "children": [desc] if desc else []
+                    })
+                elif field == "relations":
+                    field_node["children"].append({
+                        "text": f"{item.get('id', '')} {item.get('source', '')} -> {item.get('target', '')} [{item.get('type', '')}]",
+                        "children": [item.get('description', '')] if item.get('description') else []
+                    })
+                elif field == "constraints":
+                    field_node["children"].append({
+                        "text": f"{item.get('id', '')} {item.get('content', '')[:60]}",
+                        "children": [f"source: {', '.join(item.get('source_facts', []))}"]
+                    })
+            children.append(field_node)
 
-            for field, label in field_labels:
-                items = mod.get(field, [])
-                if not items:
-                    continue
-                field_node = {"text": label, "children": []}
-                for item in items:
-                    if isinstance(item, dict):
-                        if item.get("question"):
-                            field_node["children"].append({
-                                "text": item["question"],
-                                "children": [item.get("context", "")]
-                            })
-                        else:
-                            field_node["children"].append(XMindExporter._norm(item))
-                    else:
-                        field_node["children"].append(str(item))
-                mod_node["children"].append(field_node)
-
-            modules.append(mod_node)
-
-        XMindExporter._write_opml(opml_file, "需求分析", root_text, modules)
+        XMindExporter._write_opml(opml_file, "需求分析", root_text, children)
 
     # ==============================================================
     # 3. test_design.json
@@ -179,57 +186,49 @@ class XMindExporter:
             print(f"跳过（无法解析 JSON）：{json_file}")
             return
 
-        project = data.get("project", "测试设计")
-        modules = []
+        root_text = "测试设计"
+        children = []
 
-        for mod in data.get("modules", []):
-            mod_node = {"text": mod.get("name", ""), "children": []}
+        tps = data.get("test_points", [])
+        if tps:
+            tp_node = {"text": f"测试点（{len(tps)}）", "children": []}
+            for tp in tps:
+                tp_text = f"{tp.get('id', '')} [{tp.get('priority', '')}] {tp.get('title', '')}"
+                tp_children = [
+                    f"类型：{tp.get('type', '')}",
+                    f"状态：{tp.get('status', '')}",
+                ]
+                if tp.get("description"):
+                    tp_children.append(tp["description"])
+                if tp.get("related_rules"):
+                    tp_children.append(f"关联规则：{', '.join(tp['related_rules'])}")
+                if tp.get("related_states"):
+                    tp_children.append(f"关联状态：{', '.join(tp['related_states'])}")
+                if tp.get("related_gaps"):
+                    tp_children.append(f"关联缺口：{', '.join(tp['related_gaps'])}")
+                tp_node["children"].append({"text": tp_text, "children": tp_children})
+            children.append(tp_node)
 
-            for design in mod.get("test_designs", []):
-                d_node = {"text": f"{design.get('design_id', '')} - {design.get('test_goal', '')}", "children": []}
+        cov = data.get("coverage", {})
+        if cov:
+            cov_children = []
+            for dim, items in cov.items():
+                if items:
+                    cov_children.append({"text": f"{dim}：{', '.join(items)}"})
+            if cov_children:
+                children.append({"text": "覆盖率", "children": cov_children})
 
-                d_node["children"].append(f"测试对象：{design.get('test_object', '')}")
-                d_node["children"].append(f"风险等级：{design.get('risk_level', '')}")
-                d_node["children"].append(f"测试方法：{', '.join(design.get('test_methods', []))}")
-                d_node["children"].append(f"场景：{design.get('scenario', '')}")
+        blocked = data.get("blocked_designs", [])
+        if blocked:
+            b_node = {"text": f"阻塞设计（{len(blocked)}）", "children": []}
+            for b in blocked:
+                b_node["children"].append({
+                    "text": b.get("test_point_id", ""),
+                    "children": [b.get("reason", "")]
+                })
+            children.append(b_node)
 
-                for label, key in [
-                    ("条件", "conditions"),
-                    ("数据维度", "data_dimensions"),
-                    ("时间维度", "time_dimensions"),
-                    ("状态维度", "state_dimensions"),
-                    ("来源维度", "source_dimensions"),
-                    ("预期行为", "expected_behavior"),
-                    ("覆盖目标", "coverage_targets"),
-                ]:
-                    items = design.get(key, [])
-                    if not items:
-                        continue
-                    field_node = {"text": label, "children": []}
-                    for item in items:
-                        if isinstance(item, dict):
-                            if item.get("from") and item.get("to"):
-                                field_node["children"].append(f"{item['from']} -> {item['to']}")
-                            elif item.get("name") and item.get("values"):
-                                field_node["children"].append({
-                                    "text": item["name"],
-                                    "children": [str(v) for v in item["values"]]
-                                })
-                            elif item.get("name") and item.get("value"):
-                                field_node["children"].append(f"{item['name']}：{item['value']}")
-                            elif item.get("type") and item.get("target"):
-                                field_node["children"].append(f"{item['type']}：{item['target']}")
-                            else:
-                                field_node["children"].append(str(item))
-                        else:
-                            field_node["children"].append(str(item))
-                    d_node["children"].append(field_node)
-
-                mod_node["children"].append(d_node)
-
-            modules.append(mod_node)
-
-        XMindExporter._write_opml(opml_file, project, project, modules)
+        XMindExporter._write_opml(opml_file, "测试设计", root_text, children)
 
     # ==============================================================
     # 4. test_cases.json
@@ -241,24 +240,49 @@ class XMindExporter:
             print(f"跳过（无法解析 JSON）：{json_file}")
             return
 
-        project = data.get("project", "测试用例")
-        modules = []
+        root_text = "测试用例"
+        children = []
 
-        for mod in data.get("modules", []):
-            mod_node = {"text": mod.get("name", ""), "children": []}
+        tcs = data.get("test_cases", [])
+        if tcs:
+            tc_node = {"text": f"测试用例（{len(tcs)}）", "children": []}
+            for tc in tcs:
+                title = f"{tc.get('id', '')} [{tc.get('priority', '')}] {tc.get('title', '')}"
+                tc_children = []
 
-            for tc in mod.get("testcases", []):
-                tc_node = {"text": tc.get("title", ""), "children": []}
-                for step in tc.get("steps", []):
-                    tc_node["children"].append({
-                        "text": f"步骤：{step.get('action', '')}",
-                        "children": [f"期望：{step.get('expected', '')}"]
-                    })
-                mod_node["children"].append(tc_node)
+                if tc.get("test_point_id"):
+                    tc_children.append(f"测试点：{tc['test_point_id']}")
 
-            modules.append(mod_node)
+                for pre in tc.get("preconditions", []):
+                    tc_children.append(f"前置：{pre}")
 
-        XMindExporter._write_opml(opml_file, project, project, modules)
+                for td in tc.get("test_data", []):
+                    tc_children.append(f"数据：{td}")
+
+                steps = tc.get("steps", [])
+                if steps:
+                    steps_node = {"text": "步骤", "children": []}
+                    for step in steps:
+                        steps_node["children"].append(f"{step.get('step', '')}. {step.get('action', '')}")
+                    tc_children.append(steps_node)
+
+                for exp in tc.get("expected_results", []):
+                    tc_children.append(f"期望：{exp}")
+
+                tc_node["children"].append({"text": title, "children": tc_children})
+            children.append(tc_node)
+
+        blocked = data.get("blocked_cases", [])
+        if blocked:
+            b_node = {"text": f"阻塞用例（{len(blocked)}）", "children": []}
+            for b in blocked:
+                b_node["children"].append({
+                    "text": b.get("test_point_id", ""),
+                    "children": [b.get("reason", "")]
+                })
+            children.append(b_node)
+
+        XMindExporter._write_opml(opml_file, "测试用例", root_text, children)
 
     # ==============================================================
     # 5. validation_result.json
@@ -330,6 +354,152 @@ class XMindExporter:
         XMindExporter._write_opml(opml_file, "质量验证", root_text, children)
 
     # ==============================================================
+    # 6. facts.json
+    # ==============================================================
+    @staticmethod
+    def export_facts(json_file, opml_file):
+        data = XMindExporter._load_json(json_file)
+        if data is None:
+            print(f"跳过（无法解析 JSON）：{json_file}")
+            return
+
+        root_text = "需求事实"
+        children = []
+
+        facts = data.get("facts", data if isinstance(data, list) else [])
+        if isinstance(data, dict) and not facts:
+            for key, value in data.items():
+                if isinstance(value, list):
+                    facts = value
+                    break
+
+        for fact in facts if isinstance(facts, list) else []:
+            if isinstance(fact, dict):
+                fact_text = fact.get("id", fact.get("title", ""))
+                fact_children = [fact.get("content", fact.get("text", ""))]
+                if fact.get("source"):
+                    fact_children.append(f"来源：{fact['source']}")
+                if fact.get("type"):
+                    fact_children.append(f"类型：{fact['type']}")
+                children.append({"text": fact_text, "children": fact_children})
+            else:
+                children.append(str(fact))
+
+        XMindExporter._write_opml(opml_file, "需求事实", root_text, children)
+
+    # ==============================================================
+    # 7. gaps.json
+    # ==============================================================
+    @staticmethod
+    def export_gaps(json_file, opml_file):
+        data = XMindExporter._load_json(json_file)
+        if data is None:
+            print(f"跳过（无法解析 JSON）：{json_file}")
+            return
+
+        root_text = "需求缺口"
+        children = []
+
+        summary = data.get("summary", {})
+        if summary:
+            children.append({"text": "汇总", "children": [
+                f"{k}: {v}" for k, v in summary.items()
+            ]})
+
+        gaps = data.get("gaps", [])
+        if gaps:
+            gaps_node = {"text": f"缺口列表（{len(gaps)}）", "children": []}
+            for gap in gaps:
+                gap_text = f"{gap.get('id', '')} [{gap.get('priority', '')}] {gap.get('type', '')}"
+                gap_children = [gap.get("description", gap.get("problem", ""))]
+                if gap.get("suggestion"):
+                    gap_children.append(f"建议：{gap['suggestion']}")
+                gaps_node["children"].append({"text": gap_text, "children": gap_children})
+            children.append(gaps_node)
+
+        XMindExporter._write_opml(opml_file, "需求缺口", root_text, children)
+
+    # ==============================================================
+    # 8. quality_review.json
+    # ==============================================================
+    @staticmethod
+    def export_quality_review(json_file, opml_file):
+        data = XMindExporter._load_json(json_file)
+        if data is None:
+            print(f"跳过（无法解析 JSON）：{json_file}")
+            return
+
+        root_text = "质量评估"
+        children = []
+
+        children.append(data.get("summary", ""))
+
+        metrics = data.get("metrics", {})
+        if metrics:
+            children.append({"text": "指标", "children": [
+                f"{k}: {v}" for k, v in metrics.items()
+            ]})
+
+        cov = data.get("coverage", {})
+        if cov:
+            children.append({"text": "覆盖率", "children": [
+                f"{k}: {v}" for k, v in cov.items()
+            ]})
+
+        dims = data.get("quality_dimensions", {})
+        if dims:
+            children.append({"text": "质量维度", "children": [
+                f"{k}: {v}" for k, v in dims.items()
+            ]})
+
+        issues_sum = data.get("issues_summary", {})
+        if issues_sum:
+            children.append({"text": "问题汇总", "children": [
+                f"{k}: {v}" for k, v in issues_sum.items()
+            ]})
+
+        children.append(f"幻觉风险：{data.get('hallucination_risk', 'UNKNOWN')}")
+
+        issues = data.get("issues", [])
+        if issues:
+            issues_node = {"text": f"问题列表（{len(issues)}）", "children": []}
+            for iss in issues:
+                issue_text = f"{iss.get('issue_id', '')} [{iss.get('severity', '')}] {iss.get('type', '')}"
+                issues_node["children"].append({"text": issue_text, "children": [
+                    iss.get("problem", ""),
+                    f"建议：{iss.get('suggestion', '')}"
+                ]})
+            children.append(issues_node)
+
+        XMindExporter._write_opml(opml_file, "质量评估", root_text, children)
+
+    # ==============================================================
+    # 9. release_gate.json
+    # ==============================================================
+    @staticmethod
+    def export_release_gate(json_file, opml_file):
+        data = XMindExporter._load_json(json_file)
+        if data is None:
+            print(f"跳过（无法解析 JSON）：{json_file}")
+            return
+
+        gate = data.get("gate", "UNKNOWN")
+        root_text = f"执行准入：{gate}"
+        children = []
+
+        reasons = data.get("reasons", [])
+        if reasons:
+            children.append({"text": "判定原因", "children": reasons})
+
+        snapshot = data.get("metrics_snapshot", {})
+        if snapshot:
+            children.append({"text": "指标快照", "children": [
+                f"{k}: {v}" for k, v in snapshot.items()
+            ]})
+
+        XMindExporter._write_opml(opml_file, "执行准入", root_text, children)
+
+    # ==============================================================
     # Export All
     # ==============================================================
     @staticmethod
@@ -339,10 +509,14 @@ class XMindExporter:
 
         exports = [
             ("parsed.json", "parsed.opml", XMindExporter.export_parsed),
+            ("facts.json", "facts.opml", XMindExporter.export_facts),
             ("analysis.json", "analysis.opml", XMindExporter.export_analysis),
+            ("gaps.json", "gaps.opml", XMindExporter.export_gaps),
             ("test_design.json", "test_design.opml", XMindExporter.export_test_design),
             ("test_cases.json", "test_cases.opml", XMindExporter.export_test_cases),
             ("validation_result.json", "validation_result.opml", XMindExporter.export_validation),
+            ("quality_review.json", "quality_review.opml", XMindExporter.export_quality_review),
+            ("release_gate.json", "release_gate.opml", XMindExporter.export_release_gate),
         ]
 
         for json_name, opml_name, func in exports:

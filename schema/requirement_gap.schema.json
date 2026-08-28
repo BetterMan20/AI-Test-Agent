@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "requirement_gap.schema.json",
+  "title": "Requirement Gap Detection",
+  "description": "Requirement gaps derived from Requirement Facts and Requirement Analysis.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gaps",
+    "summary"
+  ],
+  "properties": {
+    "gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gap"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    }
+  },
+  "$defs": {
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "description",
+        "priority",
+        "source_facts",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^G[0-9]{3,}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "MISSING_RULE",
+            "MISSING_STATE",
+            "MISSING_RELATION",
+            "MISSING_CONSTRAINT",
+            "MISSING_DATA_RULE",
+            "MISSING_TIME_RULE",
+            "MISSING_SOURCE_RULE",
+            "AMBIGUITY",
+            "CONFLICT",
+            "INCOMPLETE_FLOW",
+            "UNVERIFIABLE_REQUIREMENT"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "P0",
+            "P1",
+            "P2"
+          ]
+        },
+        "source_facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^F[0-9]{3,}$"
+          }
+        },
+        "related_analysis": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "impact": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "OPEN",
+            "RESOLVED",
+            "ACCEPTED"
+          ]
+        }
+      }
+    },
+
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p0",
+        "p1",
+        "p2",
+        "gate"
+      ],
+      "properties": {
+        "p0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p1": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p2": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gate": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "CONDITIONAL",
+            "BLOCK"
+          ]
+        }
+      }
+    }
+  }
+}

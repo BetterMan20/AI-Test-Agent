@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "release_gate.schema.json",
+  "title": "Release Gate Result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "reasons",
+    "quality_snapshot",
+    "policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "gate": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "CONDITIONAL",
+        "BLOCK"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "quality_snapshot": {
+      "type": "object",
+      "required": [
+        "quality_status",
+        "p0_count",
+        "p1_count"
+      ],
+      "properties": {
+        "quality_status": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "CONDITIONAL",
+            "BLOCK"
+          ]
+        },
+        "p0_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p1_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "deterministic": {
+          "type": "boolean"
+        },
+        "uses_llm": {
+          "type": "boolean"
+        },
+        "recalculates_quality": {
+          "type": "boolean"
+        },
+        "recalculates_coverage": {
+          "type": "boolean"
+        },
+        "final_release_decision": {
+          "type": "boolean"
+        },
+        "code": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

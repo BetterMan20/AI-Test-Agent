@@ -1,195 +1,98 @@
-import json
+"""
+agents/test_design.py
 
-from configs.skills import SKILLS
+Test Design Agent
+=================
+
+职责：
+    将 Requirement Analysis + Requirement Gap 转换为 Test Design。
+
+核心原则：
+
+    Requirement Analysis
+            +
+    Requirement Gap
+            ↓
+       Test Design
+            ↓
+       Test Points
+            ↓
+    Test Case Generator
+
+Test Design 负责：
+    - 识别测试点
+    - 选择测试设计方法
+    - 定义测试维度
+    - 定义边界
+    - 定义状态
+    - 定义数据关系
+    - 定义约束
+    - 建立 Requirement / Gap → Test Point 的追踪关系
+
+Test Design 不负责：
+    - 生成具体 Test Case
+    - 编写操作步骤
+    - 编写期望结果
+    - 验证 Test Case
+    - 做最终质量判定
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict
+
 from utils.skill_engine import SkillEngine
 
 
 class TestDesign:
 
-    def run(self, analysis):
+    AGENT_NAME = "test_design"
+    STAGE_NAME = "Test Design"
 
-        print("========== Test Design ==========")
+    SKILL_PATH = (
+        Path(__file__).resolve().parent.parent
+        / "skills"
+        / "test-design.skill.md"
+    )
 
-        # ==================================================
-        # Step 1: Normalize Requirement Analysis
-        # ==================================================
+    SCHEMA_PATH = (
+        Path(__file__).resolve().parent.parent
+        / "schema"
+        / "test_design.schema.json"
+    )
 
-        normalized_analysis = self._normalize_analysis(
-            analysis
-        )
-
-        print(
-            "Test Design Normalize 后输入长度：",
-            len(
-                json.dumps(
-                    normalized_analysis,
-                    ensure_ascii=False
-                )
-            )
-        )
-
-        # ==================================================
-        # Step 2: Test Design
-        # ==================================================
-
-        result = SkillEngine.run(
-            skill_path=SKILLS["design"],
-            user_input=normalized_analysis,
-            schema_path="schema/test_design.schema.json",
-            output_mode="json"
-        )
-
-        print(
-            "Test Design 输出完成"
-        )
-
-        return result
-
-    # ======================================================
-    # Lightweight Normalize
-    # ======================================================
-
-    @staticmethod
-    def _normalize_analysis(analysis):
-        """
-        对 Requirement Analysis 做轻量标准化。
-
-        目的：
-        1. 保证输入类型稳定
-        2. 如果上游返回 JSON 字符串，转换为 dict
-        3. 清理 None / 空字符串
-        4. 保留业务事实
-        5. 不进行任何业务推理
-        6. 不修改业务规则
-        """
-
-        # --------------------------------------------------
-        # 1. JSON String -> dict
-        # --------------------------------------------------
-
-        if isinstance(analysis, str):
-
-            text = analysis.strip()
-
-            if not text:
-                raise ValueError(
-                    "Requirement Analysis 为空"
-                )
-
-            try:
-
-                analysis = json.loads(text)
-
-            except json.JSONDecodeError as e:
-
-                raise ValueError(
-                    "Requirement Analysis 不是合法 JSON"
-                ) from e
-
-        # --------------------------------------------------
-        # 2. 必须是 Object
-        # --------------------------------------------------
+    def run(
+        self,
+        analysis: Dict[str, Any],
+        gaps: Dict[str, Any],
+    ) -> Dict[str, Any]:
 
         if not isinstance(analysis, dict):
-
-            raise TypeError(
-                "Requirement Analysis 必须是 JSON Object"
+            raise ValueError(
+                "TestDesign requires analysis as dict."
             )
 
-        # --------------------------------------------------
-        # 3. Recursive normalize
-        # --------------------------------------------------
+        if not isinstance(gaps, dict):
+            raise ValueError(
+                "TestDesign requires gaps as dict."
+            )
 
-        normalized = TestDesign._clean_value(
-            analysis
+        input_data = {
+            "requirement_analysis": analysis,
+            "requirement_gap": gaps,
+        }
+
+        result = SkillEngine.run(
+            skill_path=str(self.SKILL_PATH),
+            input_data=input_data,
+            schema_path=str(self.SCHEMA_PATH),
+            output_mode="json",
         )
 
-        # --------------------------------------------------
-        # 4. 基础结构保护
-        # --------------------------------------------------
-
-        if not isinstance(normalized, dict):
-
+        if not isinstance(result, dict):
             raise ValueError(
-                "Normalize 后 Requirement Analysis 必须是 Object"
+                "TestDesign output must be a dict."
             )
 
-        return normalized
-
-    # ======================================================
-    # Recursive Cleaner
-    # ======================================================
-
-    @staticmethod
-    def _clean_value(value):
-
-        # --------------------------------------------------
-        # dict
-        # --------------------------------------------------
-
-        if isinstance(value, dict):
-
-            result = {}
-
-            for key, item in value.items():
-
-                # 不修改 key
-                normalized_value = (
-                    TestDesign._clean_value(item)
-                )
-
-                # 只清理 None
-                if normalized_value is None:
-                    continue
-
-                # 清理空字符串
-                if (
-                    isinstance(
-                        normalized_value,
-                        str
-                    )
-                    and not normalized_value.strip()
-                ):
-                    continue
-
-                result[key] = normalized_value
-
-            return result
-
-        # --------------------------------------------------
-        # list
-        # --------------------------------------------------
-
-        if isinstance(value, list):
-
-            result = []
-
-            for item in value:
-
-                normalized_item = (
-                    TestDesign._clean_value(item)
-                )
-
-                if normalized_item is None:
-                    continue
-
-                if (
-                    isinstance(
-                        normalized_item,
-                        str
-                    )
-                    and not normalized_item.strip()
-                ):
-                    continue
-
-                result.append(
-                    normalized_item
-                )
-
-            return result
-
-        # --------------------------------------------------
-        # scalar
-        # --------------------------------------------------
-
-        return value
+        return result

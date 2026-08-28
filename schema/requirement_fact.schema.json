@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "requirement_fact.schema.json",
+  "title": "Requirement Fact Extraction",
+  "description": "Schema for structured facts explicitly extracted from a software requirement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "facts"
+  ],
+  "properties": {
+    "facts": {
+      "type": "array",
+      "description": "Facts explicitly supported by the requirement.",
+      "items": {
+        "$ref": "#/$defs/fact"
+      }
+    }
+  },
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "content",
+        "source",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^F[0-9]{3,}$",
+          "description": "Unique fact identifier, e.g. F001."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "ACTOR",
+            "OBJECT",
+            "ACTION",
+            "RULE",
+            "CONDITION",
+            "ATTRIBUTE",
+            "STATE",
+            "TRANSITION",
+            "TIME",
+            "QUANTITY",
+            "LIMIT",
+            "PERMISSION",
+            "DATA",
+            "RELATION",
+            "EXCEPTION",
+            "CONFIGURATION"
+          ],
+          "description": "Fact category."
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Atomic statement explicitly supported by the requirement."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Original requirement text or traceable requirement location."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence that the content is explicitly supported by the requirement."
+        }
+      }
+    }
+  }
+}

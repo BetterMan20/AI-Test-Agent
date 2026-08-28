@@ -32,6 +32,8 @@ def extract_llm_content(message):
 
     """
 
+    import re
+
     # --------------------------------
     # 1. 标准 ChatCompletion
     # --------------------------------
@@ -59,6 +61,25 @@ def extract_llm_content(message):
 
     if reasoning_content:
 
+        # Try to extract JSON from reasoning_content
+        # Look for ```json ... ``` block first
+        json_match = re.search(r"```json\s*\n(.*?)\n```", reasoning_content, re.DOTALL)
+        if json_match:
+            return json_match.group(1)
+
+        # Look for { ... } block
+        start = reasoning_content.find("{")
+        end = reasoning_content.rfind("}")
+        if start != -1 and end > start:
+            candidate = reasoning_content[start:end + 1]
+            try:
+                import json
+                json.loads(candidate)
+                return candidate
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # No JSON found in reasoning, return as-is so retry mechanism can kick in
         return reasoning_content
 
 
@@ -85,6 +106,22 @@ def extract_llm_content(message):
         )
 
         if reasoning_content:
+
+            # Try to extract JSON from reasoning_content
+            json_match = re.search(r"```json\s*\n(.*?)\n```", reasoning_content, re.DOTALL)
+            if json_match:
+                return json_match.group(1)
+
+            start = reasoning_content.find("{")
+            end = reasoning_content.rfind("}")
+            if start != -1 and end > start:
+                candidate = reasoning_content[start:end + 1]
+                try:
+                    import json
+                    json.loads(candidate)
+                    return candidate
+                except (json.JSONDecodeError, ValueError):
+                    pass
 
             return reasoning_content
 
@@ -216,7 +253,7 @@ def ask_llm(
             temperature=0.2,
 
 
-            max_tokens=12000,
+            max_tokens=16000,
 
 
             stream=False

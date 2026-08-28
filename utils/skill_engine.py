@@ -18,7 +18,7 @@ class SkillEngine:
     @staticmethod
     def run(
         skill_path,
-        user_input,
+        input_data,
         schema_path=None,
         output_mode="text"
     ):
@@ -76,7 +76,7 @@ class SkillEngine:
 
         original_input = (
             SkillEngine._serialize_input(
-                user_input
+                input_data
             )
         )
 
@@ -280,17 +280,62 @@ class SkillEngine:
     # ======================================================
 
     @staticmethod
+    def _repair_json(text):
+        """修复 LLM 输出 JSON 中常见语法错误"""
+        # 移除尾随逗号: },] 或 },} 或 ],] 或 ],}
+        text = re.sub(r",\s*([}\]])", r"\1", text)
+        # 移除 } 前的尾随逗号（单独处理）
+        text = re.sub(r",\s*}", "}", text)
+        # 移除 ] 前的尾随逗号
+        text = re.sub(r",\s*]", "]", text)
+        # 修复单引号为双引号
+        text = text.replace("'", '"')
+        # 移除 JSON 前后的非 JSON 文本
+        return text
+
+    @staticmethod
+    def _try_parse_json(text):
+        """尝试解析 JSON，包含修复步骤"""
+        # 1. 直接解析
+        try:
+            return json.loads(text, strict=False)
+        except json.JSONDecodeError:
+            pass
+
+        # 2. 修复后解析
+        repaired = SkillEngine._repair_json(text)
+        try:
+            return json.loads(repaired, strict=False)
+        except json.JSONDecodeError:
+            pass
+
+        # 3. 逐层尝试：从最大范围到最小范围
+        # 找所有可能的 JSON 起始位置
+        for start in range(len(text)):
+            if text[start] == '{':
+                end = text.rfind('}')
+                if end > start:
+                    candidate = text[start:end + 1]
+                    try:
+                        return json.loads(candidate, strict=False)
+                    except json.JSONDecodeError:
+                        repaired = SkillEngine._repair_json(candidate)
+                        try:
+                            return json.loads(repaired, strict=False)
+                        except json.JSONDecodeError:
+                            continue
+
+        raise ValueError("无法解析 JSON")
+
+    @staticmethod
     def _parse_json(text):
 
         text = text.strip()
 
         # 1. Direct JSON
         try:
-
-            return json.loads(text)
-
-        except json.JSONDecodeError:
-
+            return SkillEngine._try_parse_json(text)
+        except (json.JSONDecodeError, ValueError):
             pass
 
         # 2. ```json
@@ -301,10 +346,10 @@ class SkillEngine:
         )
 
         if match:
-
-            return json.loads(
-                match.group(1)
-            )
+            try:
+                return SkillEngine._try_parse_json(match.group(1))
+            except (json.JSONDecodeError, ValueError):
+                pass
 
         # 3. ```
         match = re.search(
@@ -314,12 +359,12 @@ class SkillEngine:
         )
 
         if match:
+            try:
+                return SkillEngine._try_parse_json(match.group(1))
+            except (json.JSONDecodeError, ValueError):
+                pass
 
-            return json.loads(
-                match.group(1)
-            )
-
-        # 4. JSON Object
+        # 4. JSON Object - fallback
         start = text.find("{")
         end = text.rfind("}")
 
@@ -328,8 +373,7 @@ class SkillEngine:
             and end != -1
             and end > start
         ):
-
-            return json.loads(
+            return SkillEngine._try_parse_json(
                 text[start:end + 1]
             )
 
@@ -470,9 +514,7 @@ Schema 错误：
         if schema_path and schema_path.endswith(
                 "requirement_analysis.schema.json"
         ):
-            data = SkillEngine._normalize_rules(
-                data
-            )
+            data = SkillEngine._normalize_analysis(data)
 
         # ===============================
         # Test Design
@@ -490,7 +532,7 @@ Schema 错误：
         # ===============================
 
         if schema_path and schema_path.endswith(
-                "validation_result.schema.json"
+                "test_case_validation.schema.json"
         ):
             data = SkillEngine._normalize_validation(data)
 
@@ -614,31 +656,37 @@ Schema 错误：
         return data
 
     @staticmethod
-    def _normalize_rules(data):
+    def _normalize_analysis(data):
+
+        array_fields = [
+            "actors",
+            "rules",
+            "states",
+            "relations",
+            "constraints",
+            "source_facts",
+            "related_analysis"
+        ]
 
         if isinstance(data, dict):
 
             for key, value in data.items():
 
-                if key == "rules":
+                if key in array_fields:
 
-                    if isinstance(value, list):
-                        data[key] = "\n".join(
-                            value
-                        )
+                    if isinstance(value, dict):
+                        data[key] = [value]
+
+                    elif isinstance(value, str):
+                        data[key] = [value]
 
                 else:
 
-                    SkillEngine._normalize_rules(
-                        value
-                    )
-
+                    SkillEngine._normalize_analysis(value)
 
         elif isinstance(data, list):
 
             for item in data:
-                SkillEngine._normalize_rules(
-                    item
-                )
+                SkillEngine._normalize_analysis(item)
 
         return data

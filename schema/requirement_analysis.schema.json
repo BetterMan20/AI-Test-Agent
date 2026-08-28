@@ -1,100 +1,201 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Requirement Analysis Schema",
+  "$id": "requirement_analysis.schema.json",
+  "title": "Requirement Analysis",
+  "description": "Structured analysis derived from Requirement Facts.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "summary",
-    "modules"
+    "actors",
+    "rules",
+    "states",
+    "relations",
+    "constraints"
   ],
-  "$defs": {
-    "rule_item": {
-      "oneOf": [
-        { "type": "string" },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["source", "rule"],
-          "properties": {
-            "source": { "type": "string" },
-            "rule": { "type": "string" }
-          }
-        }
-      ]
-    }
-  },
   "properties": {
-    "summary": {
-      "type": "string"
-    },
-    "modules": {
+    "actors": {
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "business_context",
-          "preconditions",
-          "business_rules",
-          "state_rules",
-          "data_rules",
-          "time_rules",
-          "source_rules",
-          "constraints",
-          "ambiguities"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "business_context": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "preconditions": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "business_rules": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "state_rules": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "data_rules": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "time_rules": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "source_rules": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "constraints": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
-          },
-          "ambiguities": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "question",
-                "context"
-              ],
-              "properties": {
-                "question": { "type": "string" },
-                "context": { "type": "string" }
-              }
-            }
-          }
+        "$ref": "#/$defs/actor"
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/constraint"
+      }
+    }
+  },
+  "$defs": {
+    "sourceFacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^F[0-9]{3,}$"
+      }
+    },
+
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "source_facts"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^A[0-9]{3,}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_facts": {
+          "$ref": "#/$defs/sourceFacts"
+        }
+      }
+    },
+
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "content",
+        "source_facts",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^R[0-9]{3,}$"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_facts": {
+          "$ref": "#/$defs/sourceFacts"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "source_facts"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^S[0-9]{3,}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "source_facts": {
+          "$ref": "#/$defs/sourceFacts"
+        }
+      }
+    },
+
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "target",
+        "type",
+        "source_facts"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^REL[0-9]{3,}$"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "ASSOCIATION",
+            "DEPENDENCY",
+            "CONTAINS",
+            "TRIGGERS",
+            "TRANSITIONS_TO",
+            "PRECEDES",
+            "EXCLUDES",
+            "REQUIRES"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "source_facts": {
+          "$ref": "#/$defs/sourceFacts"
+        }
+      }
+    },
+
+    "constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "content",
+        "source_facts"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^C[0-9]{3,}$"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_facts": {
+          "$ref": "#/$defs/sourceFacts"
         }
       }
     }

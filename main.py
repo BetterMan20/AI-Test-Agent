@@ -61,56 +61,40 @@ def main():
 
 
     # ----------------------------------------------------------
-    # Get Validation Result
+    # Release Gate
     # ----------------------------------------------------------
 
-    validation = result.get("validation", {})
+    gate = result.get("release_gate", {})
 
-    status = validation.get("status", "UNKNOWN")
-    quality = validation.get("quality", {})
-    issues = validation.get("issues", [])
+    gate_decision = gate.get("gate", "UNKNOWN")
+    reasons = gate.get("reasons", [])
 
-    print(f"\nValidation Status: {status}")
+    symbols = {
+        "PASS": "[PASS]",
+        "CONDITIONAL": "[CONDITIONAL]",
+        "BLOCK": "[BLOCK]",
+    }
 
-    if quality:
-        print("\nQuality Dimensions:")
-        for dim, result in quality.items():
-            print(f"  {dim}: {result}")
+    print(f"\nRelease Gate: {symbols.get(gate_decision, '[UNKNOWN]')} {gate_decision}")
 
-    # ----------------------------------------------------------
-    # PASS
-    # ----------------------------------------------------------
-
-    if status == "PASS":
-
-        print("\n✓ Test cases passed validation.")
-        print("✓ Final output: output/validation_result.json")
+    for reason in reasons:
+        print(f"  - {reason}")
 
     # ----------------------------------------------------------
-    # FAIL
+    # Show issues if any
     # ----------------------------------------------------------
 
-    elif status == "FAIL":
+    quality_review = result.get("quality_review", {})
+    issues = quality_review.get("issues", [])
 
-        print("\n✗ Test cases failed validation.")
-        print(f"Found {len(issues)} issue(s).")
-
+    if issues:
+        print(f"\nIssues ({len(issues)}):")
         for issue in issues:
-
             print("\n--------------------------------")
             print(f"Severity: {issue.get('severity', 'UNKNOWN')}")
             print(f"Type: {issue.get('type', 'UNKNOWN')}")
             print(f"Problem: {issue.get('problem', '')}")
             print(f"Suggestion: {issue.get('suggestion', '')}")
-
-    # ----------------------------------------------------------
-    # UNKNOWN / BLOCKED
-    # ----------------------------------------------------------
-
-    else:
-
-        print(f"\n? Validation status: {status}")
-        print("Please check output/validation_result.json")
 
     # ==========================================================
     # Export OPML

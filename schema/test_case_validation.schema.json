@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "test_case_validation.schema.json",
+  "title": "Test Case Validation Result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "validation_status",
+    "coverage",
+    "validated_testcases",
+    "issues",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "validation_status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "WARNING",
+        "FAIL"
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "test_point_count",
+        "covered_test_points",
+        "uncovered_test_points",
+        "coverage_rate",
+        "coverage_gap",
+        "point_to_test_cases"
+      ],
+      "properties": {
+        "test_point_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "covered_test_points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncovered_test_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "coverage_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coverage_gap": {
+          "type": "boolean"
+        },
+        "point_to_test_cases": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "validated_testcases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "test_case_id",
+          "status",
+          "test_point_refs",
+          "issues"
+        ],
+        "properties": {
+          "test_case_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "WARNING",
+              "FAIL"
+            ]
+          },
+          "test_point_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/issue"
+            }
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "total_test_cases",
+        "p0_count",
+        "p1_count",
+        "issue_count"
+      ],
+      "properties": {
+        "total_test_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p0_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p1_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issue_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "validation_scope": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "issue": {
+      "type": "object",
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "P0",
+            "P1",
+            "P2"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
