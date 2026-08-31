@@ -21,6 +21,39 @@
           }
         }
       ]
+    },
+    "state_rule_item": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["source", "rule"],
+          "properties": {
+            "source": { "type": "string" },
+            "rule": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["object", "states", "transitions"],
+          "properties": {
+            "object": { "type": "string" },
+            "states": { "type": "array", "items": { "type": "string" } },
+            "transitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from", "to"],
+                "properties": {
+                  "from": { "type": "string" },
+                  "to": { "type": "string" },
+                  "trigger": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "properties": {
@@ -62,7 +95,7 @@
           },
           "state_rules": {
             "type": "array",
-            "items": { "$ref": "#/$defs/rule_item" }
+            "items": { "$ref": "#/$defs/state_rule_item" }
           },
           "data_rules": {
             "type": "array",
