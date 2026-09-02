@@ -124,38 +124,3 @@ def normalize_dimension_array(data):
 
 
     return data
-
-def normalize_dimension_array(data):
-
-    dimension_fields = [
-        "data_dimensions",
-        "time_dimensions",
-        "source_dimensions"
-    ]
-
-
-    if isinstance(data, dict):
-
-        for key, value in data.items():
-
-            if key in dimension_fields:
-
-                if isinstance(value, dict):
-
-                    data[key] = [
-                        value
-                    ]
-
-            else:
-
-                normalize_dimension_array(value)
-
-
-    elif isinstance(data, list):
-
-        for item in data:
-
-            normalize_dimension_array(item)
-
-
-    return data

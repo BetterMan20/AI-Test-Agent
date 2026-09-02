@@ -40,6 +40,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
+from configs.skills import SKILLS
 from utils.skill_engine import SkillEngine
 
 
@@ -48,11 +49,7 @@ class TestCaseGenerator:
     AGENT_NAME = "testcase_generator"
     STAGE_NAME = "Test Case Generator"
 
-    SKILL_PATH = (
-        Path(__file__).resolve().parent.parent
-        / "skills"
-        / "test-case-generator.skill.md"
-    )
+    SKILL_PATH = SKILLS["generation"]
 
     SCHEMA_PATH = (
         Path(__file__).resolve().parent.parent

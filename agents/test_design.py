@@ -42,6 +42,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
+from configs.skills import SKILLS
 from utils.skill_engine import SkillEngine
 
 
@@ -50,11 +51,7 @@ class TestDesign:
     AGENT_NAME = "test_design"
     STAGE_NAME = "Test Design"
 
-    SKILL_PATH = (
-        Path(__file__).resolve().parent.parent
-        / "skills"
-        / "test-design.skill.md"
-    )
+    SKILL_PATH = SKILLS["design"]
 
     SCHEMA_PATH = (
         Path(__file__).resolve().parent.parent

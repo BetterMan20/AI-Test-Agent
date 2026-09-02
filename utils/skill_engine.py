@@ -7,7 +7,6 @@ from jsonschema.exceptions import ValidationError
 
 from utils.skill_loader import load_skill
 from utils.llm import ask_llm
-from utils.normalize import normalize_rule_field
 
 
 

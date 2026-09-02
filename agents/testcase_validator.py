@@ -55,6 +55,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
+from configs.skills import SKILLS
 from utils.skill_engine import SkillEngine
 
 
@@ -63,11 +64,7 @@ class TestCaseValidator:
     AGENT_NAME = "testcase_validator"
     STAGE_NAME = "Test Case Validator"
 
-    SKILL_PATH = (
-        Path(__file__).resolve().parent.parent
-        / "skills"
-        / "test-case-validator.skill.md"
-    )
+    SKILL_PATH = SKILLS["validation"]
 
     SCHEMA_PATH = (
         Path(__file__).resolve().parent.parent

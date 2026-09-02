@@ -1,2 +1,2 @@
 <?xml version='1.0' encoding='utf-8'?>
-<opml version="2.0"><head><title>需求缺口</title></head><body><outline text="需求缺口"><outline text="汇总"><outline text="p0: 0" /><outline text="p1: 0" /><outline text="p2: 0" /><outline text="gate: PASS" /></outline></outline></body></opml>
+<opml version="2.0"><head><title>需求缺口</title></head><body><outline text="需求缺口"><outline text="汇总"><outline text="p0: 1" /><outline text="p1: 0" /><outline text="p2: 0" /><outline text="gate: BLOCK" /></outline><outline text="缺口列表（1）"><outline text="G001 [P0] MISSING_RULE"><outline text="需求提及体验卡过期时触发IM消息，但未定义触发IM消息的核心业务规则（如消息内容、接收对象、触发条件细化等），导致测试设计缺乏明确依据" /></outline></outline></outline></body></opml>

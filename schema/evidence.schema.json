@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence.schema.json",
+  "title": "Evidence",
+  "description": "A single evidence artifact captured during test execution: screenshot, logcat, API response, DB snapshot, or text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "path",
+    "tc_id",
+    "step_id"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "screenshot",
+        "logcat",
+        "api_response",
+        "db_snapshot",
+        "text"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tc_id": {
+      "type": "string",
+      "pattern": "^TC-[A-Z0-9]+-[0-9]{3,}$"
+    },
+    "step_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hash": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

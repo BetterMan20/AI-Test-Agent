@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution_result.schema.json",
+  "title": "Execution Result",
+  "description": "Aggregated execution results for a batch of test cases, including per-step status, assertion counts, and evidence references.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "duration_ms",
+    "results"
+  ],
+  "properties": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "pass",
+        "fail",
+        "error",
+        "skip"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fail": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skip": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/tc_result"
+      }
+    }
+  },
+  "$defs": {
+    "tc_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tc_id",
+        "title",
+        "status",
+        "duration_ms",
+        "steps"
+      ],
+      "properties": {
+        "tc_id": {
+          "type": "string",
+          "pattern": "^TC-[A-Z0-9]+-[0-9]{3,}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "error",
+            "skip"
+          ]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step_result"
+          }
+        }
+      }
+    },
+    "step_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "type",
+        "status",
+        "assertions_passed",
+        "assertions_failed",
+        "duration_ms"
+      ],
+      "properties": {
+        "step_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "api",
+            "db",
+            "adb",
+            "manual"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "error",
+            "skip"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assertions_passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "assertions_failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
