@@ -14,7 +14,8 @@ print("===============================")
 client = OpenAI(
     api_key=API_KEY,
     base_url=BASE_URL,
-    timeout=300
+    timeout=600,
+    max_retries=1
 )
 
 
@@ -206,7 +207,9 @@ def print_response_debug(response):
 
 def ask_llm(
     system_prompt: str,
-    user_prompt: str
+    user_prompt: str,
+    return_usage: bool = False,
+    max_tokens: int = 32000
 ):
 
     start = time.time()
@@ -253,9 +256,7 @@ def ask_llm(
             temperature=0.2,
 
 
-            max_tokens=16000,
-
-
+            max_tokens=max_tokens,
             stream=False
 
         )
@@ -319,6 +320,19 @@ def ask_llm(
             len(result)
         )
 
+        if return_usage:
+            usage = getattr(response, "usage", None)
+            tokens = {
+                "input_tokens": (
+                    getattr(usage, "prompt_tokens", 0)
+                    if usage else 0
+                ),
+                "output_tokens": (
+                    getattr(usage, "completion_tokens", 0)
+                    if usage else 0
+                ),
+            }
+            return result, tokens
 
         return result
 

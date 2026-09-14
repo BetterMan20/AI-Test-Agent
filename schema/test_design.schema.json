@@ -1,267 +1,264 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "test_design.schema.json",
-  "title": "AI Test Agent Test Design",
+  "title": "Test Design — Model + Scenarios + Points",
+  "description": "Test design built from business model: test model → test scenarios → test points.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "summary",
+    "test_model",
+    "test_scenarios",
     "test_points",
-    "blocked_points",
-    "coverage"
+    "blocked_points"
   ],
   "properties": {
-    "summary": {
+    "test_model": {
       "type": "object",
-      "additionalProperties": false,
+      "description": "从业务模型推导的测试模型",
       "required": [
-        "total_test_points",
-        "blocked_points"
+        "test_objects",
+        "state_dimensions",
+        "condition_dimensions",
+        "business_flows",
+        "risk_points"
       ],
       "properties": {
-        "total_test_points": {
-          "type": "integer",
-          "minimum": 0
+        "test_objects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/testObject" }
         },
-        "blocked_points": {
-          "type": "integer",
-          "minimum": 0
+        "state_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stateDimension" }
+        },
+        "condition_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/conditionDimension" }
+        },
+        "business_flows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/businessFlow" }
+        },
+        "risk_points": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/riskPoint" }
         }
       }
     },
-
+    "test_scenarios": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/testScenario" }
+    },
     "test_points": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/testPoint"
-      }
+      "items": { "$ref": "#/$defs/testPoint" },
+      "minItems": 1
     },
-
     "blocked_points": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/blockedPoint"
-      }
+      "items": { "$ref": "#/$defs/blockedPoint" }
     },
-
     "coverage": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "fact_ids",
-        "rule_ids",
-        "state_ids",
-        "gap_ids"
-      ],
       "properties": {
-        "fact_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-        "rule_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-        "state_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-        "gap_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        }
+        "entity_coverage": { "type": "array", "items": { "type": "string" } },
+        "state_coverage": { "type": "array", "items": { "type": "string" } },
+        "condition_coverage": { "type": "array", "items": { "type": "string" } },
+        "action_coverage": { "type": "array", "items": { "type": "string" } },
+        "flow_coverage": { "type": "array", "items": { "type": "string" } },
+        "risk_coverage": { "type": "array", "items": { "type": "string" } },
+        "fact_ids": { "type": "array", "items": { "type": "string" } }
       }
     }
   },
-
   "$defs": {
+    "sourceFacts": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "type": "string", "pattern": "^F[0-9]{3,}$" }
+    },
+
+    "testObject": {
+      "type": "object",
+      "required": ["id", "name", "entity_ref", "source_facts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^TO[0-9]{3,}$" },
+        "name": { "type": "string" },
+        "entity_ref": { "type": "string" },
+        "test_strategy": { "type": "string" },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" }
+      }
+    },
+
+    "stateDimension": {
+      "type": "object",
+      "required": ["id", "entity_ref", "states", "test_type", "source_facts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^SD[0-9]{3,}$" },
+        "entity_ref": { "type": "string" },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "test_type": {
+          "type": "string",
+          "enum": ["state_transition", "state_verification", "enumeration"]
+        },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" }
+      }
+    },
+
+    "conditionDimension": {
+      "type": "object",
+      "required": ["id", "name", "values", "test_type", "source_facts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^CD[0-9]{3,}$" },
+        "name": { "type": "string" },
+        "condition_ref": { "type": "string" },
+        "values": { "type": "array", "items": { "type": "string" } },
+        "test_type": {
+          "type": "string",
+          "enum": [
+            "equivalence_partitioning",
+            "boundary_value",
+            "permission",
+            "enumeration",
+            "positive_negative"
+          ]
+        },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" }
+      }
+    },
+
+    "businessFlow": {
+      "type": "object",
+      "required": ["id", "name", "steps", "source_facts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^BF[0-9]{3,}$" },
+        "name": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "description"],
+            "properties": {
+              "step": { "type": "integer" },
+              "description": { "type": "string" },
+              "action_ref": { "type": "string" },
+              "entity_ref": { "type": "string" }
+            }
+          }
+        },
+        "derived": { "type": "boolean" },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" }
+      }
+    },
+
+    "riskPoint": {
+      "type": "object",
+      "required": ["id", "description", "risk_type", "severity", "source_facts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^RP[0-9]{3,}$" },
+        "description": { "type": "string" },
+        "risk_type": {
+          "type": "string",
+          "enum": ["data_integrity", "state_consistency", "permission", "timing", "ui_ux", "business_logic"]
+        },
+        "severity": { "type": "string", "enum": ["high", "medium", "low"] },
+        "derived": { "type": "boolean" },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" }
+      }
+    },
+
+    "testScenario": {
+      "type": "object",
+      "required": ["id", "title", "scenario_type", "flow_ref", "preconditions", "steps", "expected_outcome", "source_facts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^SC[0-9]{3,}$" },
+        "title": { "type": "string" },
+        "scenario_type": {
+          "type": "string",
+          "enum": ["main_flow", "exception_flow", "boundary_flow", "state_transition", "permission"]
+        },
+        "flow_ref": { "type": "string" },
+        "preconditions": { "type": "array", "items": { "type": "string" } },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "action"],
+            "properties": {
+              "step": { "type": "integer" },
+              "action": { "type": "string" },
+              "entity_state": { "type": "string" }
+            }
+          }
+        },
+        "expected_outcome": { "type": "string" },
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" }
+      }
+    },
 
     "testPoint": {
       "type": "object",
-      "additionalProperties": false,
       "required": [
         "id",
         "title",
         "objective",
         "priority",
         "test_method",
+        "scenario_refs",
         "source_facts",
-        "source_rules",
-        "source_states",
-        "related_gaps",
         "design_basis"
       ],
       "properties": {
-
-        "id": {
-          "type": "string",
-          "pattern": "^TP-[A-Z0-9-]+$"
-        },
-
-        "title": {
-          "type": "string",
-          "minLength": 1
-        },
-
-        "objective": {
-          "type": "string",
-          "minLength": 1
-        },
-
-        "priority": {
-          "type": "string",
-          "enum": [
-            "P0",
-            "P1",
-            "P2",
-            "P3"
-          ]
-        },
-
+        "id": { "type": "string", "pattern": "^TP-[A-Z0-9-]+-[0-9]{3,}$" },
+        "title": { "type": "string" },
+        "objective": { "type": "string" },
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
         "test_method": {
           "type": "array",
-          "minItems": 1,
           "items": {
             "type": "string",
             "enum": [
               "equivalence_partitioning",
               "boundary_value_analysis",
               "decision_table",
-              "cause_effect_graph",
               "state_transition",
               "error_guessing",
-              "pairwise",
               "scenario_testing",
               "workflow_testing",
               "data_consistency",
-              "time_boundary",
+              "data_validation",
               "permission_testing",
-              "compatibility_testing"
+              "time_boundary"
             ]
-          },
-          "uniqueItems": true
+          }
         },
-
-        "source_facts": {
+        "scenario_refs": {
           "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
+          "items": { "type": "string" },
+          "description": "引用的 test_scenario id"
         },
-
-        "source_rules": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-
-        "source_states": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-
-        "related_gaps": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-
-        "design_basis": {
-          "type": "string",
-          "minLength": 1
-        },
-
-        "test_dimensions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-
-        "coverage_targets": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        }
+        "source_facts": { "$ref": "#/$defs/sourceFacts" },
+        "source_conditions": { "type": "array", "items": { "type": "string" } },
+        "source_states": { "type": "array", "items": { "type": "string" } },
+        "related_risks": { "type": "array", "items": { "type": "string" } },
+        "design_basis": { "type": "string" }
       }
     },
 
     "blockedPoint": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "priority",
-        "related_gaps",
-        "reason"
-      ],
+      "required": ["id", "title", "priority", "related_gaps", "reason"],
       "properties": {
-
-        "id": {
-          "type": "string",
-          "pattern": "^TP-[A-Z0-9-]+$"
-        },
-
-        "title": {
-          "type": "string",
-          "minLength": 1
-        },
-
-        "priority": {
-          "type": "string",
-          "enum": [
-            "P0",
-            "P1",
-            "P2",
-            "P3"
-          ]
-        },
-
+        "id": { "type": "string", "pattern": "^TP-[A-Z0-9-]+-[0-9]{3,}$" },
+        "title": { "type": "string" },
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
         "related_gaps": {
           "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
+          "items": { "type": "string" },
+          "minItems": 1
         },
-
-        "reason": {
-          "type": "string",
-          "minLength": 1
-        },
-
-        "source_facts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        }
+        "reason": { "type": "string" }
       }
     }
   }

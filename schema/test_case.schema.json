@@ -14,7 +14,8 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/testCase"
-      }
+      },
+      "minItems": 1
     },
     "blocked_cases": {
       "type": "array",
@@ -57,6 +58,10 @@
         "test_point_id": {
           "type": "string",
           "pattern": "^TP-[A-Z0-9-]+$"
+        },
+        "scenario_ref": {
+          "type": "string",
+          "description": "引用的 Test Scenario ID"
         },
         "source_facts": {
           "type": "array",

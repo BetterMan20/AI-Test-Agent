@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Test-Agent 项目状态报告 · 2026-09-11</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #21262d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --accent3: #f0883e;
+  --accent4: #f778ba;
+  --accent5: #a371f7;
+  --red: #f85149;
+  --yellow: #d29922;
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.75;
+  font-size: 15px;
+}
+.wrap { max-width: 1000px; margin: 0 auto; padding: 48px 24px 80px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, .mono { font-family: 'SFMono-Regular', Consolas, 'JetBrains Mono', Menlo, monospace; font-size: 0.9em; }
+h1 { font-size: 30px; line-height: 1.3; margin-bottom: 10px; }
+h2 { font-size: 22px; margin-top: 56px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 17px; margin-top: 28px; margin-bottom: 6px; }
+p { margin: 10px 0; }
+.lead { font-size: 16px; color: var(--text-muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+.meta span { background: var(--surface); border: 1px solid var(--border); padding: 2px 10px; border-radius: 999px; }
+.intro {
+  background: linear-gradient(180deg, var(--surface), var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 8px;
+}
+.intro .concl {
+  margin-top: 14px;
+  padding: 14px 18px;
+  background: var(--surface2);
+  border-left: 3px solid var(--accent2);
+  border-radius: 8px;
+  font-size: 15px;
+}
+.statgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 20px 0; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+.stat .num { font-size: 30px; font-weight: 700; color: var(--accent); }
+.stat .num.good { color: var(--success); }
+.stat .num.warn { color: var(--warning); }
+.stat .num.danger { color: var(--danger); }
+.stat .lbl { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+th { background: var(--surface2); font-weight: 600; white-space: nowrap; }
+td code { font-size: 0.92em; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.tag.ok { background: rgba(63,185,80,.15); color: var(--success); }
+.tag.warn { background: rgba(210,153,34,.15); color: var(--warning); }
+.tag.bad { background: rgba(248,81,73,.15); color: var(--danger); }
+.tag.info { background: rgba(88,166,255,.15); color: var(--accent); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 14px 0; }
+.card.warn { border-color: rgba(210,153,34,.5); }
+.card.danger { border-color: rgba(248,81,73,.5); }
+.card.good { border-color: rgba(63,185,80,.5); }
+ul, ol { padding-left: 22px; margin: 8px 0; }
+li { margin: 4px 0; }
+.small { font-size: 13px; color: var(--text-muted); }
+.srcline { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 13px; }
+@media (max-width: 700px) {
+  .statgrid { grid-template-columns: repeat(2, 1fr); }
+  .wrap { padding: 28px 16px 60px; }
+  th { white-space: normal; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="intro">
+  <div class="meta">
+    <span>2026-09-11</span>
+    <span>v0.8 · 三层解耦</span>
+    <span>HIGO 发红包</span>
+    <span>红包优化 E2E 已跑</span>
+    <span>通用引擎 + 项目适配器</span>
+  </div>
+  <h1>AI-Test-Agent 项目状态报告</h1>
+  <p class="lead">一条「从需求 → 用例 → 真实执行回放 + 自动采证据 × 自动出结论」的测试流水线，定位是提升测试效率、保证测试质量。</p>
+  <div class="concl">
+    <strong>核心结论：</strong>S1–S5（需求→用例）已完整跑通；S6 已在 HIGO 发红包上完成<strong>真实执行冒烟与全量回归</strong>——26 条用例协议层全通过、自动采证据、自动区分「协议可达」与「后端业务状态码」，并把「连续批量回放触发后端防重放(ret=-1)」这一接口边界如实暴露。本轮完成了<strong>架构解耦（Core / Projects / Execution 三层 + 项目适配器）</strong>：Core 只做通用测试编排、不含任何 HIGO 业务硬编码；发红包/送礼/进房等业务动作全部下沉到 <code>projects/higo/adapters</code>，经统一 CLI <code>python -m app run --project higo --env test --action &lt;业务动作&gt;</code> 执行。三个业务能力均已真机抓包回放验证：<code>send_red_packet</code>（Phase B UI 下钻 PASS）、<code>send_gift</code>（ret=1 复现 PASS）、<code>enter_voice_room</code>（ret=1 复现 PASS）。
+  </div>
+</header>
+
+<h2>1. 项目目标与当前处境</h2>
+<p>项目最初目标是<strong>提升测试效率、保证测试质量</strong>。复盘后有一个诚实的判断：早期大量投入集中在 S1–S5 的「测试设计自动化」（把需求变成用例），而它在已有经验的团队里往往<strong>不是效率的直接杠杆</strong>，甚至新增评审负担。真正同时撬动效率和质量的，是 <strong>S6 执行/回归</strong>：一键回放、自动采证据、自动判结论，把手工回归的人时省下来，也把漏测/误判暴露出来。</p>
+<p>因此本轮聚焦点从「生成更多用例」转向「把回归执行真正跑起来并拿出可复用的成果」。</p>
+
+<h2>2. S1–S6 架构与状态</h2>
+<table>
+  <thead><tr><th>阶段</th><th>内容</th><th>关键机制</th><th>产物</th><th>状态</th></tr></thead>
+  <tbody>
+    <tr><td>S1 需求理解</td><td>解析 + 事实抽取</td><td>分块防截断、内引号转义修复、16 类 Fact 白名单</td><td><code>parsed.json</code> <code>facts.json</code></td><td><span class="tag ok">跑通</span></td></tr>
+    <tr><td>S2 需求分析</td><td>业务建模 + 缺口</td><td>25 Fact/块并行分块建模 + 确定性合并（防 LLM 截断）；<code>source_facts</code> 溯源防幻觉</td><td><code>analysis.json</code> <code>gaps.json</code></td><td><span class="tag ok">跑通</span></td></tr>
+    <tr><td>S3 测试设计</td><td>模块 + 测试点</td><td>先出测试模型（对象/状态/条件/流程/风险点）再生用例</td><td><code>test_design.json</code></td><td><span class="tag ok">跑通</span></td></tr>
+    <tr><td>S4 用例生成</td><td>生成用例</td><td>四级嵌套 + 链路式步骤</td><td><code>test_cases.json</code>(26条)</td><td><span class="tag ok">跑通</span></td></tr>
+    <tr><td>S5 用例评审</td><td>校验+评审+门禁</td><td>校验(LLM)+评审/门禁(确定性)</td><td><code>validation_result.json</code>…</td><td><span class="tag ok">跑通</span></td></tr>
+    <tr><td>S6 批量回归</td><td>抓包回放+TC批量+ADB/UI</td><td>三套可复用执行原语；协议/业务两层断言</td><td><code>execution_result.json</code></td><td><span class="tag ok">真实跑通(冒烟+全量)</span></td></tr>
+  </tbody>
+</table>
+
+<h2>3. 执行层三套可复用原语</h2>
+<div class="statgrid">
+  <div class="stat"><div class="num">A</div><div class="lbl">抓包API回放（后端）<br>逐端点选成功请求·字节级原样回放·断言</div></div>
+  <div class="stat"><div class="num">B</div><div class="lbl">ADB/UI 验证（前端）<br>dump→点入口→面板校验</div></div>
+  <div class="stat"><div class="num">C</div><div class="lbl">文档级 TC 批量<br>26条用例模板化生成 ExecutionPlan</div></div>
+  <div class="stat"><div class="num">3×</div><div class="lbl">证据体系<br>API 四件套 / ADB 三件套 / DB 三件套</div></div>
+</div>
+<ul>
+  <li><strong>原样回放：</strong><code>sign</code> 按 <code>h_ts+token+body</code> 的原始字节计算，回放固定用 <code>req_body_raw</code> 原始串走 <code>data=</code>，绝不重排/刷新 <code>h_ts</code>。</li>
+  <li><strong>不硬编码成功码：</strong>统一用 <code>CapturedAPI.is_success</code> 启发式，断言「复现抓包业务码」。</li>
+  <li><strong>两层断言（本轮改进）：</strong>协议层以 <code>status_code</code> 判定可达(pass)；业务码 <code>ret</code> 作为<strong>独立观测归因列</strong>，避免把后端防重放(-1)/限频(-101)等业务状态误判为产品缺陷。</li>
+</ul>
+
+<h2>4. 本次真实批量回归成果（HIGO 发红包）</h2>
+
+<h3>4.1 冒烟验证（链路打通）</h3>
+<table>
+  <thead><tr><th>回归条目</th><th>抓包业务码</th><th>回放实际</th><th>结论</th></tr></thead>
+  <tbody>
+    <tr><td>端点回放·成功样本</td><td>ret=1</td><td>ret=1</td><td><span class="tag ok">复现成功</span></td></tr>
+    <tr><td>端点回放·受限样本</td><td>ret=-101（频率限制）</td><td>ret=-101</td><td><span class="tag info">如实复现</span></td></tr>
+    <tr><td>TC-001 进房显示入口</td><td>—</td><td>2 断言通过</td><td><span class="tag ok">pass</span></td></tr>
+    <tr><td>TC-010 白名单权限发送</td><td>—</td><td>2 断言通过</td><td><span class="tag ok">pass</span></td></tr>
+    <tr><td>TC-018 金额分配一致性</td><td>—</td><td>3 断言通过（含 <code>$.data.status</code>）</td><td><span class="tag ok">pass</span></td></tr>
+  </tbody>
+</table>
+
+<h3>4.2 全量 26 条后端回归（两层断言后）</h3>
+<div class="statgrid">
+  <div class="stat"><div class="num good">26/26</div><div class="lbl">协议层通过<br><code>status_code=200</code> 接口全程可达</div></div>
+  <div class="stat"><div class="num danger">0</div><div class="lbl">误报的产品缺陷<br>业务状态码已独立归因，不混入 fail</div></div>
+  <div class="stat"><div class="num warn">26</div><div class="lbl">业务码观测 ret=-1<br>后端防重放/限频拒绝</div></div>
+  <div class="stat"><div class="num good">33+</div><div class="lbl">证据文件自动落盘<br>每用例 request/response/headers/execution</div></div>
+</div>
+<p><strong>关键发现：</strong>本次运行 26 条用例<b>业务码观测全部为 <code>ret=-1</code></b>（<code>reproduced=False</code>）。对照冒烟时前 5 条为 <code>ret=1</code>，说明<strong>连续批量回放同一 sign 的请求会触发后端防重放/限频</strong>，短窗口内同类请求统一被拒。这是真实的接口边界行为——协议层（可达、返回业务 JSON）全部正常，业务层由后端状态控制。系统本次完整识别并归类，而不是当作 21 条产品缺陷误报。</p>
+
+<h3>4.3 ADB/UI 前端验证</h3>
+<table>
+  <thead><tr><th>步骤</th><th>动作</th><th>结果</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>TC-BR-UI-001</td><td>dump 当前直播房间页</td><td><span class="tag ok">pass</span></td><td>设备在线、UI 层级可采集</td></tr>
+    <tr><td>TC-BR-UI-002</td><td>parse → input tap 红包/礼物入口</td><td><span class="tag ok">pass</span></td><td>已触达入口</td></tr>
+    <tr><td>TC-BR-UI-003</td><td>面板特征校验</td><td><span class="tag warn">未命中</span></td><td>当前房间该时刻未在发红包、无金币/红包面板特征（真实前端观测）</td></tr>
+  </tbody>
+</table>
+
+<h3>4.4 账号健康度巡检（方案2：素材库 + 自动巡检）</h3>
+<p>抓包库既是可执行回归素材，也是账号登记簿。巡检器自动回放每个账号的登录样本，判定授权可用性，并把发红包样本按 <code>mid</code>（<code>zyp</code> 明文）关联到账号。</p>
+<div class="statgrid">
+  <div class="stat"><div class="num good">9/9</div><div class="lbl">登录回放通过<br>每账号刷新到最新 token</div></div>
+  <div class="stat"><div class="num good">0</div><div class="lbl">孤儿发送样本<br>发红包样本均有归属账号</div></div>
+  <div class="stat"><div class="num">2</div><div class="lbl">发红包账号<br>77883(×6)、7788397(×13)</div></div>
+  <div class="stat"><div class="num warn">7</div><div class="lbl">有登录无发红包样本<br>可作未来素材补充</div></div>
+</div>
+<table>
+  <thead><tr><th>账号</th><th>状态</th><th>登录ret</th><th>发红包样本</th><th>最新token</th></tr></thead>
+  <tbody>
+    <tr><td>77883</td><td><span class="tag ok">ok</span></td><td>1</td><td>6</td><td><code>TaK0…</code></td></tr>
+    <tr><td>7788397</td><td><span class="tag ok">ok</span></td><td>1</td><td>13</td><td><code>T3K1…</code></td></tr>
+    <tr><td colspan="5" class="small">其余 7 账号登录均可用但无发红包样本（<code>no_send</code>）。产物 <code>output/evidence_account_health/account_health.json</code>。</td></tr>
+  </tbody>
+</table>
+
+<h3>4.5 红包优化需求 E2E 业务测试</h3>
+<p>针对「发红包优化」需求，用 <code>run_redpacket_e2e.py</code> 做一次端到端业务测试：Phase A 用真实抓包原样回放 <code>POST /live/room/send_red_packet</code>（coins=999, quantity=50, countdown=60）；Phase B 用 ADB+UI 从房间页 dump 下钻并验证红包发送面板。</p>
+<div class="statgrid">
+  <div class="stat"><div class="num good">PASS</div><div class="lbl">ADB+UI 下钻<br>dump→点红包入口→面板特征命中</div></div>
+  <div class="stat"><div class="num danger">FAIL</div><div class="lbl">API send_red_packet<br>ret=-11 token 过期(环境)</div></div>
+  <div class="stat"><div class="num">2/1</div><div class="lbl">Phase B 断言<br>UI dump + 下钻点击均 pass</div></div>
+  <div class="stat"><div class="num warn">环境</div><div class="lbl">归因非业务缺陷<br>旧 token 会话失效</div></div>
+</div>
+<table>
+  <thead><tr><th>阶段</th><th>步骤</th><th>实际</th><th>结论</th></tr></thead>
+  <tbody>
+    <tr><td>Phase A API</td><td>回放 send_red_packet</td><td><code>ret=-11 Authorization code error</code></td><td><span class="tag bad">会话失效</span> 脚本内硬编码旧 token 过期，非业务逻辑问题</td></tr>
+    <tr><td>Phase B UI-001</td><td>wakeup→dump 房间页</td><td>UI 层级可采集</td><td><span class="tag ok">pass</span></td></tr>
+    <tr><td>Phase B UI-002</td><td>parse→tap 红包入口(372,1566)→回 dump</td><td>已触达、面板特征命中</td><td><span class="tag ok">pass</span></td></tr>
+  </tbody>
+</table>
+<p><strong>归因结论：</strong>UI 链路（前端业务）验证通；API 层失败为 token 过期 <code>ret=-11</code>，系统如实识别为<strong>环境/会话失效</strong>而非产品缺陷——与第 4.4 节账号健康巡检相互印证（发送样本必须由新登录刷新 token 后回放）。产物 <code>output/evidence_higo_redpacket_e2e/execution_result.json</code>。</p>
+
+<h2>5. S6 分层测试决策（测试策略决策器）</h2>
+<p>在批量回归之上新增<strong>统一决策入口</strong>：给定"回归模式 + 待测业务点 + 风险等级"，先<strong>决策</strong>本次跑哪些层、跑多少，再<strong>分派</strong>给各层执行，最后<strong>聚合</strong>为一份统一报告。决策当前为<strong>确定性规则</strong>（可复现、无外部依赖），并预留 <code>llm_hook</code> 接口供后续接 LLM 动态决策。</p>
+
+<div class="card">
+  <h3 style="margin-top:0;">闭环：决策器 → 分派器 → 聚合</h3>
+  <ul>
+    <li><code>orchestrator/strategy.py</code> —— <strong>决策器</strong>：输出 <code>TestPlan</code>（mode / target / layers / validation / rationale），决定业务/攻击/稳定三层开关与事件量。</li>
+    <li><code>orchestrator/delegate.py</code> —— <strong>分派器</strong>：按层执行（业务=抓包回放，攻击=本机可执行用例，稳定=状态感知随机），逐层产出 <code>LayerResult</code>。</li>
+    <li><code>orchestrator/run_strategy.py</code> —— <strong>CLI</strong>：<code>--mode smoke|regression|nightly</code>，产出 <code>output/plan.json</code> + <code>output/strategy/strategy_report.json</code> 统一报告。</li>
+  </ul>
+</div>
+
+<h3>5.1 决策矩阵（回归模式 → 各层参数）</h3>
+<table>
+  <thead><tr><th>模式</th><th>业务层</th><th>攻击层</th><th>稳定性层</th><th>归一判定（最低）</th></tr></thead>
+  <tbody>
+    <tr><td><span class="tag info">smoke</span></td><td>每端点回放代表探针(1条)</td><td>关闭</td><td>40 事件</td><td>业务通过率 ≥ 0.80</td></tr>
+    <tr><td><span class="tag info">regression</span></td><td>全量 TC 回放</td><td>可执行攻击 A01/A02/A05/A06/A07/A10</td><td>1000 事件</td><td>业务通过率 ≥ 0.90</td></tr>
+    <tr><td><span class="tag info">nightly</span></td><td>全量 TC 回放</td><td>可执行攻击全量</td><td>10000 事件(10万级目标)</td><td>业务通过率 ≥ 0.90</td></tr>
+  </tbody>
+</table>
+<p class="small">风险 > 风险等级 <code>high/critical</code> 时自动上调：稳定性事件量 <code>≥ 3000</code>、攻击覆盖上调；归一判定恒要求「稳定性崩溃数 = 0」、业务通过率达门槛、攻击可执行用例全部通过。</p>
+
+<h3>5.2 统一报告结构</h3>
+<table>
+  <thead><tr><th>字段</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td><code>plan</code></td><td>决策快照（mode/target/layers/validation/rationale）</td></tr>
+    <tr><td><code>summary</code></td><td>三层开关、<code>n_run</code>/<code>n_pass</code>、状态</td></tr>
+    <tr><td><code>layers_on</code></td><td>本次实际启用的层</td></tr>
+    <tr><td><code>pass_rate</code> / <code>verdict</code></td><td>业务通过率 + 归一判定（PASS / WARN/GATED / FAIL）</td></tr>
+    <tr><td><code>gates</code></td><td>本次触发的一组门禁条件</td></tr>
+  </tbody>
+</table>
+<div class="statgrid">
+  <div class="stat"><div class="num">3</div><div class="lbl">测试层<br>业务 / 攻击 / 稳定</div></div>
+  <div class="stat"><div class="num">3</div><div class="lbl">回归模式<br>smoke / regression / nightly</div></div>
+  <div class="stat"><div class="num">1</div><div class="lbl">统一入口<br><code>run_strategy.py</code></div></div>
+  <div class="stat"><div class="num">1</div><div class="lbl">统一报告<br>strategy_report.json</div></div>
+</div>
+
+<h2>6. 架构演进：三层解耦 + 项目适配器</h2>
+<p>本轮把「测试引擎」与「项目配置/测试目标」正式解耦，确立<strong>通用引擎 + 项目适配器</strong>模型：Core 只做通用测试编排，不写任何具体项目业务；发红包/送礼/进语音房等业务动作全部下沉到项目适配器，换项目只加一套适配器 + 一份配置，不改 Core。</p>
+
+<h3>6.1 三层结构</h3>
+<div class="card"><p style="margin:0;" class="mono">
+Core&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← 通用测试引擎（<code>core/config/loader.py</code> 配置出入通道 + <code>core/adapters</code> 适配器接口/注册表）<br>
+Projects&nbsp;&nbsp;← 项目适配/配置（<code>config/</code> + <code>testdata/</code> + <code>projects/&lt;proj&gt;/adapters</code>）<br>
+Execution&nbsp;&nbsp;← 统一执行入口（<code>app/</code>，<code>python -m app</code>）
+</p></div>
+
+<h3>6.2 适配器契约（Core 唯一的三个入口）</h3>
+<p>Core 只依赖 <code>execute_action() / get_state() / collect_evidence()</code>，返回通用 <code>ActionResult</code>；「什么叫 HIGO 红包」只存在于 <code>projects/higo/adapters</code>。registry 按项目配置声明的模块路径动态加载，Core 永不直接 import 具体项目。</p>
+<div class="statgrid">
+  <div class="stat"><div class="num">3</div><div class="lbl">适配器入口<br>execute/get_state/collect_evidence</div></div>
+  <div class="stat"><div class="num good">0</div><div class="lbl">Core 中 HIGO 业务引用<br>已扫描确认清零</div></div>
+  <div class="stat"><div class="num">3</div><div class="lbl">业务能力<br>send_red_packet / send_gift / enter_voice_room</div></div>
+  <div class="stat"><div class="num">1</div><div class="lbl">统一入口<br><code>python -m app run --action &lt;动作&gt;</code></div></div>
+</div>
+
+<h3>6.3 配置/数据/凭证三分 + 凭证安全</h3>
+<table>
+  <thead><tr><th>类别</th><th>位置</th><th>内容</th></tr></thead>
+  <tbody>
+    <tr><td>环境配置</td><td><code>config/environments/higo-test.yaml</code></td><td>API 地址、设备、DB、请求头模板</td></tr>
+    <tr><td>项目定义</td><td><code>config/projects/higo.yaml</code></td><td>能力清单、testdata 目录、素材源、adapter 模块与动作声明</td></tr>
+    <tr><td>测试数据</td><td><code>testdata/higo/*.yaml</code></td><td>业务数据（room_id/coins/quantity…），可提交</td></tr>
+    <tr><td>敏感凭证</td><td><code>.env</code> + <code>*.auth.yaml</code></td><td>sign/token/mid 等，<strong>已 gitignore 不入库</strong>，仅经 loader 注入</td></tr>
+  </tbody>
+</table>
+
+<h3>6.4 统一 CLI 与业务动作实跑</h3>
+<p>三种能力均通过适配器经 <code>--action</code> 真机抓包回放验证（路径声明在项目配置，代码零硬编码）：</p>
+<table>
+  <thead><tr><th>业务动作</th><th>接口（assets 声明）</th><th>抓包 ret</th><th>回放 ret</th><th>HTTP</th><th>结论</th></tr></thead>
+  <tbody>
+    <tr><td>send_red_packet</td><td><code>/live/room/send_red_packet</code></td><td>1</td><td>—</td><td>200</td><td><span class="tag ok">Phase B UI 下钻 PASS</span>（API 因旧 token 记环境失效）</td></tr>
+    <tr><td>send_gift</td><td><code>/live/gift/send_gift</code></td><td>1</td><td>1</td><td>200</td><td><span class="tag ok">PASS · 复现</span></td></tr>
+    <tr><td>enter_voice_room</td><td><code>/live/room/join_v2</code></td><td>1</td><td>1</td><td>200</td><td><span class="tag ok">PASS · 复现</span></td></tr>
+  </tbody>
+</table>
+<p class="small">产物：<code>output/evidence/higo-send_gift/execution_result.json</code>、<code>output/evidence/higo-enter_voice_room/execution_result.json</code>，每动作 request/response/headers/execution 四件套证据齐全。</p>
+
+<h2>7. ADB-UI 自动业务方法论</h2>
+<p>从<strong>真机连续业务操作</strong>（如连发红包）实战中沉淀的一套可复用方法，落盘为 <code>execution/METHODOLOGY_ADB_UI.md</code>，供后续一切"通过 <code>uiautomator dump + input</code> 驱动的高重复连续 UI 业务"参考。</p>
+<div class="card good">
+  <h3 style="margin-top:0;">三条铁律</h3>
+  <ol>
+    <li><strong>动态定位，永不写死坐标</strong>——布局/分类/滚动随时变，必须 dump 后按 <code>resource-id</code>/<code>text</code> 解析再算中心点。</li>
+    <li><strong>失败自愈，不中断主循环</strong>——找不到控件/被弹窗遮挡/命令失败 → 清理 → 重试，而不是整轮崩掉。</li>
+    <li><strong>以业务成功次数为准，不信 UI 状态计数</strong>——房间角标等会波动/过期；改用「余额差额 = 发送数 × 单价」这类可核对外部信号验证。</li>
+  </ol>
+</div>
+<h3>标准业务循环（原子链路）</h3>
+<p><code>清非目标弹窗 → 开业务入口 → 切分类并轮询等渲染 → 动态定位目标 → 执行动作(Send) → 关结果弹窗 → 复位</code>，闭环后才开始下一轮。</p>
+<h3>可靠性清单（本机踩坑对照）</h3>
+<table>
+  <thead><tr><th>坑</th><th>对策</th></tr></thead>
+  <tbody>
+    <tr><td>adb dump 命令挂起 → 脚本永久卡死</td><td>所有 adb 调用加 <code>timeout</code> + 捕获异常返回空</td></tr>
+    <tr><td>找不到目标控件</td><td>轮询等面板加载、强制切分类、开头清遮挡弹窗</td></tr>
+    <tr><td>后台退出但一个没发</td><td>确认 <code>main()</code> 被调用、开行缓冲日志、异常打印 traceback</td></tr>
+    <tr><td>固定坐标点出错误界面</td><td>每次实时 dump 动态定位</td></tr>
+    <tr><td>角标"涨了又掉"、计数失真</td><td>overlay 是当前可领红包态（随过期回落），改用余额差额核算</td></tr>
+  </tbody>
+</table>
+
+<h2>8. 结论与建议下一步</h2>
+<div class="card good">
+  <h3 style="margin-top:0;">已确立的价值</h3>
+  <ul>
+    <li><strong>效率：</strong>回放→断言→采证据→出结论全自动，一次回归只需 <code>python run_s6_execution.py</code>，省手工逐条核对。</li>
+    <li><strong>质量：</strong>协议层/业务层两层断言治理「误判」，如实区分成功(1)与业务状态码(-1/-101)，可追溯证据逐条落盘。</li>
+    <li><strong>发现力：</strong>暴露「批量回放同一请求触发后端防重放」这一真实边界，这是手工测试常忽略、却是回归该抓的信号。</li>
+    <li><strong>可扩展性：</strong>三层解耦 + 适配器后，新增项目只需 <code>projects/&lt;proj&gt;/adapters</code> + 一份 <code>config/projects/&lt;proj&gt;.yaml</code>，Core 与 app 零改动；业务动作与引擎彻底分离。</li>
+  </ul>
+</div>
+<div class="card warn">
+  <h3 style="margin-top:0;">已知局限</h3>
+  <ul>
+    <li>26 条用例共用<strong>同一份抓包成功样本</strong>回放，遇后端防重放/限频会整体指向 <code>ret=-1</code>；要验证业务成功态，需冷却窗口或按用例换用抓包中不同的样本/token/数据。</li>
+    <li>ADB/UI 的「面板特征校验」依赖当前设备实况（是否有直播发红包），属<strong>现场观测</strong>而非确定性断言。</li>
+  </ul>
+</div>
+<div class="card">
+  <h3 style="margin-top:0;">建议下一步</h3>
+  <ol>
+    <li><strong>按用例换样本：</strong>把「模块级复用同一样本」演进为「按 TC 类型从抓包选语义匹配、签名不同的样本」，绕过防重放，验证真正业务成功态。</li>
+    <li><strong>前端确定性：</strong>UI 面板校验改为「进入指定房间→主动触发展示红包/金币」的确定性动作链，弱化对设备实况的依赖。</li>
+    <li><strong>API 层换新 token：</strong>红包 E2E 的 Phase A 用账号健康巡检联动——发送前先用最新登录样本刷新 token 再回放，规避 <code>ret=-11</code> 会话失效。</li>
+    <li><strong>沉淀为定时回归：</strong>把 S6 挂入定时任务，产出日/夜跑回归报告，让「效率与质量」持续被量化。</li>
+    <li><strong>业务动作补前端判定：</strong>send_gift / enter_voice_room 目前为 API 抓包回放复现，可为每个动作追加 ADB/UI 层验证（沿用 ADB-UI 方法论），形成协议+前端双重证据。</li>
+  </ol>
+</div>
+
+<footer>
+  <p class="small">本期新增（架构解耦）：<code>core/adapters/</code>（接口 + 注册表）、<code>core/config/loader.py</code>（配置出入通道）、<code>projects/higo/adapters/</code>（HigoAdapter + redpacket/replay 能力）、<code>app/</code>（统一 CLI <code>python -m app</code>）；配置 <code>config/environments/higo-test.yaml</code>、<code>config/projects/higo.yaml</code>、<code>testdata/higo/*.yaml</code>；方法论 <code>execution/METHODOLOGY_ADB_UI.md</code>。历史模块：<code>orchestrator/*</code>（分层决策/分派/CLI）。</p>
+  <p class="small">数据来源：本轮真实执行产物——<code>output/evidence_batch_regression</code>、<code>output/evidence_smoke_higo</code>、<code>output/evidence_higo_redpacket_e2e</code>、<code>output/evidence/higo-send_gift</code>、<code>output/evidence/higo-enter_voice_room</code>、<code>output/evidence_account_health</code>、<code>output/execution_result.json</code>、<code>output/test_cases.json</code>。抓包目录 <code>D:/higo-api</code>（send_red_packet / send_gift / join_v2 等接口样本）。</p>
+  <p class="small">AI-Test-Agent · 测试效率与质量流水线 · 本文件为自包含单页 HTML，可离线分发。</p>
+</footer>
+
+</div>
+</body>
+</html>

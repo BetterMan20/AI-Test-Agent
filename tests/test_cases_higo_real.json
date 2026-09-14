@@ -1,0 +1,82 @@
+{
+  "test_cases": [
+    {
+      "id": "TC-HIGO-SIGNIN-001",
+      "title": "用户每日签到领取奖励-基本流程",
+      "priority": "P0",
+      "preconditions": [
+        "用户已登录 Higo App",
+        "用户当日尚未签到",
+        "用户账户有有效 token"
+      ],
+      "test_data": [
+        "用户ID=117014742",
+        "token=T5K6NUVwAQBEekx1xqp_cG-Qiv8t6aNeDddQy8l-OzgOPB7ZxwFEH3dpI9jC0Ub7vRY8c"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "调用签到状态接口，查询用户今日是否可签到"
+        },
+        {
+          "step": 2,
+          "action": "调用签到详情接口，查看签到奖励信息"
+        },
+        {
+          "step": 3,
+          "action": "调用用户财富详情接口，记录签到前余额"
+        },
+        {
+          "step": 4,
+          "action": "调用签到接口，执行签到领取奖励"
+        },
+        {
+          "step": 5,
+          "action": "再次调用用户财富详情接口，验证余额增加"
+        }
+      ],
+      "expected_results": [
+        "签到状态接口返回 signed_today=false，表示今日尚未签到",
+        "签到详情接口返回奖励信息，包含签到天数和奖励内容",
+        "签到前用户财富值记录成功",
+        "签到接口返回 ret=1，签到成功",
+        "签到后用户财富值增加，增加量等于签到奖励数量"
+      ]
+    },
+    {
+      "id": "TC-HIGO-GIFT-001",
+      "title": "用户发送礼物-基本流程",
+      "priority": "P0",
+      "preconditions": [
+        "用户已登录 Higo App",
+        "用户持有足够金币",
+        "目标用户在线"
+      ],
+      "test_data": [
+        "用户ID=117014742",
+        "目标用户ID=117020950",
+        "礼物ID=519",
+        "token=T5K6NUVwAQBEekx1xqp_cG-Qiv8t6aNeDddQy8l-OzgOPB7ZxwFEH3dpI9jC0Ub7vRY8c"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "调用用户财富详情接口，记录发送礼物前余额"
+        },
+        {
+          "step": 2,
+          "action": "调用发送礼物接口，向目标用户发送指定礼物"
+        },
+        {
+          "step": 3,
+          "action": "再次调用用户财富详情接口，验证扣费正确"
+        }
+      ],
+      "expected_results": [
+        "发送前用户财富值记录成功",
+        "发送礼物接口返回 ret=1，礼物发送成功",
+        "发送后用户财富值减少，减少量等于礼物价格"
+      ]
+    }
+  ]
+}

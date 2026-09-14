@@ -11,6 +11,7 @@ class WorkflowContext:
         self.validation = None
         self.quality_review = None
         self.release_gate = None
+        self.execution = None
 
     def to_dict(self):
         return {
@@ -23,4 +24,5 @@ class WorkflowContext:
             "validation": self.validation,
             "quality_review": self.quality_review,
             "release_gate": self.release_gate,
+            "execution": self.execution,
         }

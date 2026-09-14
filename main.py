@@ -14,13 +14,17 @@ def main():
     # 1. Read Requirement
     # ==========================================================
 
-    requirement_path = "input/requirement.txt"
+    requirement_path = FileReader.find_input("input")
 
+    if requirement_path is None:
+        raise FileNotFoundError(
+            "No requirement document found in input/ directory. "
+            "Supported formats: .docx, .txt, .md"
+        )
 
     print(
         f"\nReading requirement: {requirement_path}"
     )
-
 
     requirement = FileReader.read(
         requirement_path

@@ -158,6 +158,7 @@ class ExecutionRunner:
                 path=action.get("path", ""),
                 headers=action.get("headers"),
                 json=action.get("body"),
+                data=action.get("data"),
                 params=action.get("params"),
             )
 

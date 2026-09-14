@@ -18,6 +18,7 @@ Clean the raw requirement document and provide clean, complete, continuous requi
 6. Do not make requirement inferences.
 7. Fix obvious numbering errors in the source document to make the structure clear.
 8. Keep all UI text, IM message templates, and variable placeholders (xxx1, xxx2, etc.) exactly as written.
+9. **Preserve each section's ownership of its business content.** Do NOT move a section's business rules/tables into a different section. In particular: a section like "需求详情" may open with external links (埋点/figma/多语言) and then hold all the business content — keep that business content **under 需求详情**, not under 数据埋点 or anywhere else. Links are secondary metadata; the business text that follows them must stay where it belongs.
 
 ## Output
 

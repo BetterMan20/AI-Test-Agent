@@ -12,4 +12,6 @@ SKILLS = {
     "generation": "skills/test-case-generator.skill.md",
 
     "validation": "skills/test-case-validator.skill.md",
+
+    "tc_to_plan": "skills/tc-to-plan.skill.md",
 }

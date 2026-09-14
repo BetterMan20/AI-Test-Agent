@@ -367,6 +367,7 @@ class QualityReview:
         referenced = self._extract_reference_ids(
             analysis,
             [
+                "source_facts",
                 "fact_ids",
                 "source_fact_ids",
                 "fact_refs",
@@ -901,12 +902,39 @@ class QualityReview:
                                 str(item_id)
                             )
 
+                        for sub_key in keys:
+                            sub_val = item.get(sub_key)
+                            if isinstance(sub_val, list):
+                                for sub_item in sub_val:
+                                    if sub_item:
+                                        result.add(str(sub_item))
+                            elif sub_val:
+                                result.add(str(sub_val))
+
                     elif item:
                         result.add(str(item))
 
             elif value:
 
                 result.add(str(value))
+
+        for array_key in (
+            "actors", "entities", "states", "conditions",
+            "actions", "outcomes", "relations",
+            "rules", "constraints",
+        ):
+            array_val = data.get(array_key)
+            if isinstance(array_val, list):
+                for item in array_val:
+                    if isinstance(item, dict):
+                        for sub_key in keys:
+                            sub_val = item.get(sub_key)
+                            if isinstance(sub_val, list):
+                                for sub_item in sub_val:
+                                    if sub_item:
+                                        result.add(str(sub_item))
+                            elif sub_val:
+                                result.add(str(sub_val))
 
         return result
 

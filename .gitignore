@@ -11,3 +11,8 @@ __pycache__/
 
 # 输出目录
 output/
+
+# 敏感凭证 / 签名绑定样本（严禁入库）
+testdata/**/*.auth.yaml
+testdata/**/*.auth.*
+secrets/

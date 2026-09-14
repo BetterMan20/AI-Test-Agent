@@ -1,0 +1,32 @@
+# =============================================================
+# 环境配置：HIGO · test
+# 这里的每一项都属于「环境配置」——API 地址 / 设备 / 头部模板，
+# 与「测试数据」(testdata/) 和「敏感凭证」(.env) 严格分离。
+# 敏感项（zyp、token、sign）从 .env / testdata/*.auth.* 注入，不入本文件。
+# =============================================================
+
+project: higo
+env: test
+
+api:
+  base_url: "https://api-chat-test.youyisia.com"
+  timeout: 60
+  # 非敏感头部模板；zyp（含 uid）属身份凭证，放 .env，由 loader 合并进来
+  headers:
+    host: "api-chat-test.youyisia.com"
+    user-agent: "okhttp/4.12.0 Zuiyou/5.98.0.5224 (Android/32)"
+    request-type: "text/json"
+    content-type: "application/json; charset=utf-8"
+
+device:
+  serial: "emulator-5554"
+  wake_commands:
+    - "input keyevent KEYCODE_WAKEUP"
+    - "wm dismiss-keyguard"
+
+db:
+  host: ""
+  port: 3306
+  user: ""
+  password: ""
+  name: ""

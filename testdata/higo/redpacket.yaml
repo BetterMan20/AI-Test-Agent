@@ -1,0 +1,18 @@
+# =============================================================
+# 测试数据：红包发送样本（脱敏模板 · 可提交）
+# 这里只放「业务测试数据」，不含任何凭证/签名/地址。
+# 凭证与签名绑定样本 → redpacket.auth.yaml（已 gitignore）。
+# =============================================================
+
+# 发红包账号 uid（身份，走 .env 注入 HIGO_UID，不入本文件）
+uid: "${HIGO_UID}"
+
+# 业务场景：发送一个正常红包
+room_id: 15008
+coins: 999
+quantity: 50
+countdown_seconds: 60
+
+# 关键约束：send_red_packet 的 sign 是对 h_ts+token+body 的原始字节计算，
+# 回放必须整体使用原始 body + 对应 sign，两者捆绑、不可重写。
+auth_ref: redpacket.auth.yaml   # 完整原始 body 与 sign 在该文件（gitignore）

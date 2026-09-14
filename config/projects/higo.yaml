@@ -1,0 +1,33 @@
+# =============================================================
+# 项目配置：HIGO
+# 仅描述「这个项目是什么、它有哪些能力/执行器、去哪里找它的数据」，
+# 不写入任何具体测试数据或环境地址。
+# =============================================================
+
+name: higo
+display: "HIGO 发红包"
+default_env: test
+
+# 本项目提供的能力/执行器（对应 strategies）
+capabilities:
+  - key: api          # 抓包回放（API 业务）
+    label: 抓包API回放
+  - key: random       # 随机稳定性（状态感知）
+    label: 随机稳定性
+  - key: case         # 指定用例执行
+    label: 指定用例执行
+
+# 测试数据目录（相对项目根）
+testdata_dir: testdata/higo
+
+# 项目适配器：Core 经 core.adapters.registry 动态加载，只认 execute_action/get_state/collect_evidence
+adapter:
+  module: projects.higo.adapters
+  actions: [send_red_packet, send_gift, enter_voice_room]
+
+# 抓包库 / 素材源
+assets:
+  whistle_dir: "D:/higo-api"
+  redpacket_path: "/live/room/send_red_packet"
+  gift_path: "/live/gift/send_gift"
+  join_room_path: "/live/room/join_v2"

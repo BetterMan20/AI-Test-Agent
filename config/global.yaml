@@ -1,0 +1,29 @@
+# =============================================================
+# 全局默认配置（跨项目通用，不含任何项目特定信息）
+# 项目特定配置 → config/projects/<proj>.yaml
+# 环境特定配置 → config/environments/<proj>-<env>.yaml
+# =============================================================
+
+execution:
+  evidence_root: output/evidence
+  validate_plans: true
+  api_timeout: 60
+  default_report: output/report.json
+
+logging:
+  level: info   # debug / info / warning / error
+
+# 交互菜单的默认任务类型列表
+tasks:
+  - key: requirement      # 需求分析（S1/S2）
+    label: 需求分析
+  - key: design           # 测试设计（S3）
+    label: 测试用例设计
+  - key: execution        # 批量执行（S6）
+    label: 批量执行
+  - key: stability        # 随机稳定性测试
+    label: 随机稳定性测试
+  - key: case             # 指定用例执行
+    label: 指定用例执行
+  - key: results          # 查看测试结果
+    label: 查看测试结果
