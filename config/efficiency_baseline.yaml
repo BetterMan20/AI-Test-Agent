@@ -1,0 +1,18 @@
+# 效率基线：各类高频重复任务的手工标准耗时（秒/单位）
+# 校准方法：团队成员手工完成该任务实测 3 次取中位数，覆盖下方经验占位值
+# 单位说明：element_locator=每修复 1 个失效定位；report_synth=每合成 1 份报告；env_guardian=每处理 1 次异常
+
+element_locator:
+  seconds_per_item: 150        # 手工改 1 个失效元素定位（打开页面→找新 XPath→改脚本→验证）
+  note: 元素定位修复（页面改版后）
+  unit: 个定位
+
+report_synth:
+  seconds_per_item: 480        # 手工拼 1 份带截图+复现步骤+风险分级的回归报告
+  note: 测试报告整理（聚合日志/截图/JSON）
+  unit: 份报告
+
+env_guardian:
+  seconds_per_item: 600        # 回归值守处理 1 次崩溃/弹窗/超时（重启 App→清弹窗→重跑）
+  note: 回归执行值守（环境自愈）
+  unit: 次异常

@@ -1,0 +1,56 @@
+items:
+- id: 1
+  domain: red_packet_claim
+  bug_brief: 'red_packet_claim 一致性违例: [''UI 与业务不一致：期望 UI=COUNTDOWN(WAITING)，观测 UI=OPEN'']'
+  semantics: WAITING
+  observed_ui: OPEN
+  expected_ui: COUNTDOWN
+  room: '14775'
+  at: '2026-09-16T11:29:53'
+  violation_category: UI_BUSINESS_MISMATCH
+- id: 2
+  domain: red_packet_claim
+  bug_brief: 'red_packet_claim 一致性违例: [''status=None 不在状态模型'']'
+  semantics: UNKNOWN
+  observed_ui: OPEN
+  expected_ui: null
+  room: '14775'
+  at: '2026-09-16T11:29:53'
+  violation_category: BAD_STATUS_VALUE
+- id: 3
+  domain: red_packet_claim
+  bug_brief: 'red_packet_claim 一致性违例: [''UI 与业务不一致：期望 UI=COUNTDOWN(WAITING)，观测 UI=OPEN'']'
+  semantics: WAITING
+  observed_ui: OPEN
+  expected_ui: COUNTDOWN
+  violations:
+  - UI 与业务不一致：期望 UI=COUNTDOWN(WAITING)，观测 UI=OPEN
+  room: '15043'
+  at: '2026-10-08T16:37:14'
+  violation_category: UI_BUSINESS_MISMATCH
+- id: 4
+  domain: room_load
+  bug_brief: 批量注册第83个账户起全部 ret=1049 device register limit exceeded：服务端按 h_did 设备指纹限制注册数（实测上限82个）
+  violation_category: OTHER
+  at: '2026-10-23T18:06:12'
+  lesson: 反例：批量注册不能共用一个设备指纹(h_did)；必须每账户独立 h_did 才能绕过设备级注册上限
+- id: 5
+  domain: room_load
+  bug_brief: 新 h_did 直接 register_by_captcha 报 ret=1009 invalid captcha：验证码与发起 get_captcha
+    的 h_did 绑定
+  violation_category: OTHER
+  at: '2026-10-23T18:06:12'
+  lesson: 反例：get_captcha 与 login/register 必须使用同一个 h_did，跨设备换指纹会丢验证码
+- id: 6
+  domain: room_load
+  bug_brief: 房间1096在线到116人后，后续账户 room/enter 全部 ret=1301103：房间容量达到服务端上限（DB/Redis无容量字段，配置在服务端配置中心）
+  violation_category: OTHER
+  at: '2026-10-23T18:06:12'
+  lesson: 反例：批量灌人前必须先探测房间容量上限；1301103=房间已满不是限频，靠重试无效，需要运营/配置侧提容或换房间
+- id: 7
+  domain: room_load
+  bug_brief: 批量手机号生成用 f'660{n:03d}' 产生6位号(660082)与池约定5位(66082)不符，造成418个假性 login_failed
+    掩盖真实限频问题
+  violation_category: OTHER
+  at: '2026-10-23T18:06:12'
+  lesson: 反例：批量号段生成前先与账户池约定核对位数；假性失败会污染根因判断
