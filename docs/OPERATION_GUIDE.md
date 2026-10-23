@@ -12,11 +12,15 @@
 
 | 依赖 | 说明 | 检查命令 |
 |---|---|---|
-| Python 环境 | 项目用 `.venv`，Python 3.10–3.14 均可 | `python --version` |
-| 依赖包 | 从 `requirements.txt` 安装 | `pip install -r requirements.txt` |
-| LLM 凭据 | 在 `.env`，走 Moonshot 兼容协议 | `python -c "import config; print(config.MODEL)"` |
+| Python 环境 | 项目用 `.venv`，Python 3.10–3.14 均可 | `.venv\Scripts\python.exe --version` |
+| 依赖包 | 从 `requirements.txt` 安装 | `.venv\Scripts\python.exe -m pip install -r requirements.txt` |
+| LLM 凭据 | 在 `.env`，走 Moonshot 兼容协议 | `.venv\Scripts\python.exe -c "import config; print(config.MODEL)"` |
 | Android 设备 | S6 稳定性 / UI 层需要真机或模拟器 | `adb devices`（示例 `emulator-5554`） |
 | 抓包目录 | S6 回放素材来源，默认 `D:/higo-api` | 目录内有 whistle 导出的 txt |
+
+> **必须用 `.venv` 里的解释器**：系统全局 Python 未安装 `jsonschema` 等依赖，直接
+> `python main.py` 会在 `import engine` 时失败。下文所有命令中的 `python` 都请替换为
+> `.venv\Scripts\python.exe`。
 
 `.env` 唯一要改的是三个键：
 
@@ -40,6 +44,10 @@ AI-Test-Agent/
 ├── run_account_health.py       账号健康度巡检（登录可用性 + 样本关联）
 ├── run_s2_chunked.py 等        各阶段独立联调脚本（见 §3）
 ├── orchestrator/               S6 分层测试决策：strategy / delegate / run_strategy
+  ├── core/qa/                    全景 QA 循环：cycle(编排) / run(CLI) / kb_facts(A) / historical_memory(C)
+  ├── core/attack/                一致性攻击：consistency(引擎) / llm_advisor(B 决策)
+  ├── core/discovery/             S0 探索：knowledge(KB/AKB) / explorer(AppExplorer)
+  ├── projects/<proj>/adapters/   项目适配：qa_driver(认识/观测/原语/执行/回填)、discover、claim_attack
 ├── stability/                  稳定性三层：actor / runner / monitor / recorder / attacks
 ├── replay/                     replay：capture_replay 抓包回放、account_health 账号巡检
 ├── execution/                  S6 执行引擎：planner / runner / result / batch_regression / ui_flow
@@ -59,7 +67,27 @@ AI-Test-Agent/
 
 ## 3. 如何操作：运行入口一览
 
-所有命令在项目根目录执行。
+所有命令在项目根目录执行。一张速查表（每行都是一条**可独立运行**的命令）：
+
+| 阶段 / 想干什么 | 命令 |
+|---|---|
+| S1–S5 端到端（读 `input/` 一需求 → 用例+门禁） | `python main.py` |
+| S1 需求解析 | `python main.py`（首步） |
+| S2 分块并行业务建模 | `python run_s2_chunked.py` |
+| S3 测试设计 | `python run_s3_design.py` |
+| S3 缺口检测 | `python run_s3_gap.py` |
+| S4 用例生成 | `python run_s4_gen.py` |
+| S5 校验+评审+门禁 | `python run_s5.py` |
+| S6 批量回归（高层入口，回放+TC+ADB） | `python run_s6_execution.py [cap] [endpoint] [serial]` |
+| S6 批量回归（执行引擎底层，含设备自动解析） | `python execution/runner.py [cap] [endpoint] [serial]` |
+| TC → Plan 桥（文档 TC 转可执行计划） | `python -m execution.planner --tc-file input/test_cases.json --tc-id <ID>` |
+| 分层测试决策+三层执行（统一入口） | `python -m orchestrator.run_strategy --mode regression` |
+| 稳定性层单独跑 | `python -m stability.runner --events 40` |
+| 全景 QA 循环（探索型，认识→学习） | `python -m core.qa.run --project higo --room 14775` |
+| 发红包 E2E 演示 | `python run_redpacket_e2e.py` |
+| 账号健康巡检 | `python run_account_health.py` |
+| 看 S6 执行结果（JSON→网页） | `python -m execution.report_html` |
+| 看 QA 循环结果（JSON→网页） | `python -m core.qa.report_html` |
 
 ### 3.1 从头跑 S1–S5（端到端）
 
@@ -158,6 +186,72 @@ python -m stability.runner --events 40 --device emulator-5554
 
 参数：`--events` 事件量、`--seed`、`--strategy RANDOM|ATTACK|REPLAY`、`--anchor-bias`、`--test-id`。产物：`output/evidence_stability/execution_result.json`。
 
+### 3.8 全景 QA 循环（探索型 Agent 统一入口）
+
+对某个业务跑完整七阶段（认识 → 建模 → 找风险 → 攻击 → 验证 → 回归 → 学习），并让 App Knowledge Base 与历史质量知识长期自积累；LLM 增强三环默认全关（确定性），逐个加开关即增强。
+
+```powershell
+# 最小确定性跑（读证据 + 回填 KB/历史，不碰设备）
+python -m core.qa.run --project higo --domain red_packet_claim --room 14775
+
+# 真机模式（前端 overlay 观测 + B 现场执行原语，须 enable 入口）
+python -m core.qa.run --project higo --room 14775 --live --device emulator-5554
+
+# 三个 LLM 增强开关（A=系统事实注入 / B=可达原语编排 / C=历史反推风险）
+python -m core.qa.run --project higo --room 14775 \
+    --real-fact-extraction --use-llm-attack --use-llm-risk
+
+# 学习阶段额外回填历史复现证据
+python -m core.qa.run --project higo --room 14775 --backfill-evidence output/evidence/higo-repro-bug
+```
+
+参数：`--project`、`--domain`（对应 `projects/<proj>/attack/<domain>.json` 与 KB 子树）、`--room`、`--live`/`--device`（真机）、`--real-fact-extraction`(A)、`--use-llm-attack`(B)、`--use-llm-risk`(C)、`--backfill-evidence`、`--out`（默认 `output/qa/cycle_report.json`）。
+
+> 与 3.6 的区别：`run_strategy` 是「分层执行」（业务/攻击/稳定三层，面向一次回归）；本条 QA 循环是「对单个业务纵向跑认识→学习」，并落库 KB/历史供下一轮复用。
+
+### 3.9 执行引擎底层入口（runner / planner）
+
+这两条是执行域的底层 CLI，与 `run_s6_execution.py`（高层）的区别在于更贴近引擎本身、便于**单独调试**。
+
+**`execution/runner.py` —— S6 批量回归引擎。** 直接驱动 `batch_regression`：扫描抓包选真实成功样本 → 逐 TC 回放采证 → 判定。三种调用方式带三种路径解析能力：
+
+```powershell
+python execution/runner.py                                    # 默认设备自动解析
+python execution/runner.py D:/higo-api send_red_packet        # 指定抓包目录与接口
+python execution/runner.py D:/higo-api send_red_packet emulator-5554
+```
+
+健壮性内建：默认路径锚定项目根（**与工作目录无关**），任何 cwd 下都能跑；`device_serial` 缺省时自动解析 ADB——恰一台用它、零台/多台则禁用 ADB/UI 步骤并**列出设备**提示你指定，绝不因设备歧义崩掉。
+
+**`execution/planner.py` —— TC→Plan 桥。** 把文档级 TC 转成可执行 `ExecutionPlan`（`PlanValidator` 的前置）：
+
+```powershell
+# 什么都不传：取 output/test_cases.json 第一条 TC（LLM 转换；加 --no-llm 走确定性秒出）
+python -m execution.planner
+# 确定性：直接给 plan dict（execution_plan.schema.json 结构）
+python -m execution.planner --plan-data input/plan.json --out output/plan.json
+# LLM：从文档 TC 生成可执行计划（可选 --capability-dir 注入抓包 API 知识）
+python -m execution.planner --tc-file input/test_cases.json --tc-id TC-RP-001
+# 跳过 LLM：步骤打为 manual 的确定性解析
+python -m execution.planner --tc-file input/test_cases.json --tc-id TC-RP-001 --no-llm
+```
+
+`--plan-data` 与 `--tc-file` 二选一（都不传则取 `output/test_cases.json` 第一条 TC）。产物 `output/planner/plan_<tc_id>.json`（机器结构）+ 同名 `.md`（人读版：步骤/动作/断言/证据清单）。
+
+### 3.10 报告渲染（JSON → 可观看网页）
+
+两层结构化报告各自附带 HTML 渲染器——`execution_result.json` / `cycle_report.json` 是机器结构，给人看得用它们转成网页：
+
+```powershell
+# S6 批量回归：execution_result.json → execution_report.html
+python -m execution.report_html [execution_result.json] [输出html]
+
+# 探索型 QA 循环：cycle_report.json → cycle_report.html　
+python -m core.qa.report_html [cycle_report.json] [输出html]
+```
+
+两个参数均可省略（取其默认源/目标路径）。渲染器是纯静态 Python 生成，产物是自包含单页 HTML，可离线打开。
+
 ---
 
 ## 4. 三层测试架构与执行原语
@@ -189,6 +283,10 @@ S6 分层执行由三层组成，统一由 `orchestrator/` 分派：
 - 每个阶段的汇总 JSON 在 `output/*.json`。
 - 每条用例/每层执行的**证据**分目录落盘：API 四件套（`*_request/json`、`*_response/json`、`*_headers/json`、`*_execution_meta/json`），ADB 三件套（`*_command/json`、`*_output/json`、`*_execution/json`）+ 按需 `screenshot`/`logcat`，DB 三件套（`db_query/json`、`db_snapshot/json`、`db_execution/json`）。
 - 统一报告入口：`output/strategy/strategy_report.json`。
+- S6 批量回归执行结果：`output/evidence_batch_regression/execution_result.json`（机器结构），人看转网页 `execution_report.html`（`python -m execution.report_html`）。
+- 全景 QA 循环报告：`output/qa/cycle_report.json`（逐阶段 wired/via/pending + 各阶段 artifact），人看转网页 `cycle_report.html`（`python -m core.qa.report_html`）。
+- App Knowledge Base（S0 长期积累）：`output/app_kb/<project>/`（screen/container/control/state/navigation 节点 JSON + 索引）。
+- 历史质量知识：`knowledge/historical.yaml`（learn 阶段去重追加，供下一轮找风险/设计复用）。
 
 三层报告的 `verdict` 判定规则：业务通过率 ≥ 门槛、稳定性崩溃数 = 0、攻击可执行用例全部通过；否则 WARN/GATED，稳定性失败则 FAIL。
 
@@ -231,6 +329,14 @@ S6 分层执行由三层组成，统一由 `orchestrator/` 分派：
 | 阶段产物 JSON 结构校验 | `schema/*.json`（9 个） |
 | 执行计划校验 | `verification/`（`PlanValidator`：API 必来自 Capability、method/path 匹配、config 完整、断言来自 TC、无未知步骤类型） |
 | S6 批量回归步长/TC 来源 | `execution/batch_regression.py` 的 `RegressionConfig`（`tc_field` 默认 `output/test_cases.json#test_cases`） |
+| 某个业务的状态/攻击模型（状态机 × 攻击路径） | `projects/<proj>/attack/<domain>.json`（如 `red_packet_claim.json`） |
+| 某个业务的可达原语清单 / 现场执行逻辑 | `projects/<proj>/adapters/qa_driver.py`：`reachable_primitives()`（能力上限）/ `execute()`（原语→设备动作） |
+| 认识/观测/回填假实现 | `projects/<proj>/adapters/qa_driver.py`：`recognize_facts()` / `observe()` / `backfill()` |
+| 全景 QA 循环 LLM 开关 / 阶段编排 | `core/qa/cycle.py`（`use_llm_attack`/`use_llm_risk`/`real_fact_extraction`）、`core/qa/run.py`（CLI 参数） |
+| A=B 系统事实渲染 | `core/qa/kb_facts.py` |
+| B=LLM 攻击决策（含原语编排约束） | `core/attack/llm_advisor.py` 的 `decide_attack()` |
+| C=历史记忆/风险反推/去重 | `core/qa/historical_memory.py`（`llm_augment_risks`/`violation_category`/`dedup_historical_file`） |
+| S0 知识库结构 / 下钻收敛 | `core/discovery/knowledge.py`、`core/discovery/explorer.py`，探针在 `projects/<proj>/adapters/discover.py` |
 
 ### 6.1 举例：给 smoke 也开攻击层
 
@@ -277,6 +383,10 @@ AttackCase("A11", "连续发送两次红包", victim,
 **ADB UI dump 权限。** UI dump 文件写 `/sdcard`（写 `/data/local/tmp` 在某些环境不可写会拿空状态）。
 
 **稳定性耗时。** 约 8 秒/事件，`nightly` 的 10000 事件实际不可在单机上短时完成；10 万级目标需稀疏 UI dump + 多设备并行（当前未实现）。
+
+**QA 循环 LLM 开关成本。** `--use-llm-attack/--use-llm-risk/--real-fact-extraction` 会触发真 LLM（单次 20–90s），全开且模型推理较长时可能 `finish_reason=length` 返回空内容——此时各阶段按设计**回退到确定性路径**（B 回退可执行路径、C 回退空、A 不产出抽取），循环不中断、不报错。要确定性/低成本就保持默认关。
+
+**QA 循环执行原语是"现场观测"不是覆盖证明。** `execute()` 在 `--live` 模式才碰设备，且前置条件要求屏幕有红包入口（overlay 信号）；无入口或设备不可达时诚实返回 `executed=False + reason`，不会伪造执行。
 
 **fake/deterministic 判定可能误报 freeze。** `Watchdog`/渲染无关日志可能被 CrashMonitor 判为 freeze，`stability/monitor.py` 的模式匹配是启发式。
 

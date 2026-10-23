@@ -16,3 +16,16 @@ output/
 testdata/**/*.auth.yaml
 testdata/**/*.auth.*
 secrets/
+
+# 登录样本 / 账号库（含真实手机号与口令，严禁入库）
+_cred_library.json
+_login_samples.json
+_seat_samples.json
+
+# Appium 运行时依赖（60MB+，由 scripts/setup_appium_env.ps1 安装）
+**/node_modules/
+
+# 本地缓存 / 临时目录
+.pytest_cache/
+.tmp/
+scratch/
