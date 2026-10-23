@@ -25,6 +25,11 @@ class EnvironmentConfig:
     adb_device_serial: str = ""
     evidence_dir: str = "output/evidence"
 
+    appium_device_serial: str = ""
+    appium_host: str = "127.0.0.1"
+    appium_port: int = 4723
+    appium_app_package: str = ""
+
 
 class ExecutionContext:
     """单条 TC 执行期间的共享状态。"""

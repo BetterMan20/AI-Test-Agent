@@ -34,6 +34,7 @@ class SkillEngine:
         output_mode="text",
         collect_stats=False,
         max_tokens=32000,
+        extra_context="",
     ):
 
         print("=" * 50)
@@ -70,6 +71,16 @@ class SkillEngine:
         if output_mode == "json":
 
             system_prompt += SkillEngine._JSON_HYGIENE_RULE
+
+        # A 模块：把「真机已探测的系统事实」(KB) 作为独立分块注入 system prompt。
+        # LLM 据此在抽取/设计阶段直接看到动态系统结构，而非只读静态需求文本。
+        if extra_context:
+
+            system_prompt += (
+                "\n\n===== 额外系统上下文（权威事实，优先于你的推断） =====\n"
+                + str(extra_context)
+                + "\n===== 额外系统上下文结束 =====\n"
+            )
 
         print("① Skill 加载完成")
 

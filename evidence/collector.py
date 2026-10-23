@@ -287,6 +287,82 @@ class EvidenceCollector:
 
         return [ev_cmd, ev_out, ev_exec]
 
+    def collect_appium_evidence(
+        self,
+        appium_config: dict[str, Any],
+        output: Any,
+        tc_id: str,
+        step_id: int,
+        execution_meta: dict[str, Any] | None = None,
+    ) -> list[Evidence]:
+        """Save 3 Appium evidence artifacts: appium_action.json, appium_page_source.xml, appium_execution.json."""
+        tc_dir = self._store.base_dir / tc_id
+        tc_dir.mkdir(parents=True, exist_ok=True)
+        meta = execution_meta or {}
+
+        # appium_action.json — what UI op was executed
+        action_path = str(tc_dir / f"step{step_id}_appium_action.json")
+        action_data = {
+            "operation": appium_config.get("operation", ""),
+            "target": appium_config.get("target"),
+            "text": appium_config.get("text"),
+            "desc": appium_config.get("desc"),
+            "swipe": appium_config.get("swipe"),
+            "timeout": appium_config.get("timeout", 10),
+        }
+        Path(action_path).write_text(
+            json.dumps(action_data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        ev_action = Evidence(
+            type=EvidenceType.APPIUM_SNAPSHOT,
+            path=action_path,
+            tc_id=tc_id,
+            step_id=step_id,
+            metadata={"artifact": "appium_action"},
+        )
+        self._store.save(ev_action)
+
+        # appium_page_source.xml — UI snapshot after the op (page_source)
+        source_path = str(tc_dir / f"step{step_id}_appium_page_source.xml")
+        source = str(output) if isinstance(output, str) else ""
+        Path(source_path).write_text(source, encoding="utf-8")
+        ev_source = Evidence(
+            type=EvidenceType.APPIUM_SNAPSHOT,
+            path=source_path,
+            tc_id=tc_id,
+            step_id=step_id,
+            metadata={"artifact": "appium_page_source", "length": len(source)},
+        )
+        self._store.save(ev_source)
+
+        # appium_execution.json — execution metadata
+        exec_path = str(tc_dir / f"step{step_id}_appium_execution.json")
+        exec_data = {
+            "tc_id": tc_id,
+            "step_id": step_id,
+            "step_type": "appium",
+            "duration_ms": meta.get("duration_ms", 0),
+            "status": meta.get("status", ""),
+            "assertions_passed": meta.get("assertions_passed", 0),
+            "assertions_failed": meta.get("assertions_failed", 0),
+            "timestamp": meta.get("timestamp", ""),
+        }
+        Path(exec_path).write_text(
+            json.dumps(exec_data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        ev_exec = Evidence(
+            type=EvidenceType.APPIUM_SNAPSHOT,
+            path=exec_path,
+            tc_id=tc_id,
+            step_id=step_id,
+            metadata={"artifact": "appium_execution"},
+        )
+        self._store.save(ev_exec)
+
+        return [ev_action, ev_source, ev_exec]
+
     def collect_logcat(
         self,
         adb_client: Any,

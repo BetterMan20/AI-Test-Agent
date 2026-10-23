@@ -71,7 +71,7 @@ class FactExtraction:
 
     _HEADING = re.compile(r"^#{2,4}\s")
 
-    def run(self, parsed: Any) -> Dict[str, Any]:
+    def run(self, parsed: Any, kb_facts: str = "") -> Dict[str, Any]:
 
         if not isinstance(parsed, str):
             raise ValueError(
@@ -89,21 +89,22 @@ class FactExtraction:
         )
 
         if len(chunks) <= 1:
-            return self._extract_single(parsed)
+            return self._extract_single(parsed, kb_facts)
 
-        return self._extract_chunked(chunks)
+        return self._extract_chunked(chunks, kb_facts)
 
     # =========================================================
     # 单块抽取
     # =========================================================
 
-    def _extract_single(self, parsed: str) -> Dict[str, Any]:
+    def _extract_single(self, parsed: str, kb_facts: str = "") -> Dict[str, Any]:
 
         result = SkillEngine.run(
             skill_path=self.SKILL_PATH,
             input_data=parsed,
             schema_path=str(self.SCHEMA_PATH),
             output_mode="json",
+            extra_context=kb_facts,
         )
 
         if not isinstance(result, dict):
@@ -125,6 +126,7 @@ class FactExtraction:
     def _extract_chunked(
         self,
         chunks: List[str],
+        kb_facts: str = "",
     ) -> Dict[str, Any]:
 
         total = len(chunks)
@@ -145,6 +147,7 @@ class FactExtraction:
                     chunk,
                     idx,
                     total,
+                    kb_facts,
                 ): idx
                 for idx, chunk in enumerate(chunks)
             }
@@ -179,6 +182,7 @@ class FactExtraction:
         chunk: str,
         idx: int,
         total: int,
+        kb_facts: str = "",
     ) -> tuple:
 
         chunk_id = idx + 1
@@ -196,6 +200,7 @@ class FactExtraction:
             schema_path=str(self.SCHEMA_PATH),
             output_mode="json",
             collect_stats=True,
+            extra_context=kb_facts,
         )
 
         end_time = time.time()

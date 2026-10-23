@@ -1,0 +1,31 @@
+# 语音房 P0 真机自动化测试数据（非敏感，可提交）
+# 敏感凭证（账号密码）放 voice_room.auth.yaml（已 gitignore）
+
+project: higo
+package: com.example.live
+device_serial: emulator-5554
+
+# 语音房入口定位（按 resource-id / text / desc 关键词，Appium 优先）
+entry:
+  # 进入语音房的入口（首页/大厅的语音房 tab 或房间卡片）
+  voice_room_tab_keywords: ["语音房", "Voice Room", "voice_room", "party", "Party"]
+  # 房间卡片点击后可进入；密码房会出现密码输入框
+  room_card_keywords: ["room_card", "live_room", "房间"]
+
+# 送礼流程定位
+gift:
+  gift_entry_keywords: ["礼物", "Gift", "gift", "送礼"]
+  # 礼物面板内的分类 tab
+  tabs:
+    普通礼物: ["普通", "Normal", "normal"]
+    幸运礼物: ["幸运", "Lucky", "lucky"]
+    盲盒: ["盲盒", "Box", "box"]
+  # 送礼确认按钮
+  send_button_keywords: ["赠送", "Send", "send", "打赏"]
+  # 数量选择（批量/连击）
+  quantity_keywords: ["数量", "count", "连击", "combo"]
+
+# 断言特征词（送礼成功后面板/公屏应出现）
+assert:
+  public_screen_keywords: ["送出", "sent", "赠送了", "gift"]
+  deduct_keywords: ["金币", "coin", "balance", "余额"]

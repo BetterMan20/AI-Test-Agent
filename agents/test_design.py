@@ -63,6 +63,7 @@ class TestDesign:
         self,
         analysis: Dict[str, Any],
         gaps: Dict[str, Any],
+        kb_facts: str = "",
     ) -> Dict[str, Any]:
 
         if not isinstance(analysis, dict):
@@ -85,6 +86,7 @@ class TestDesign:
             input_data=input_data,
             schema_path=str(self.SCHEMA_PATH),
             output_mode="json",
+            extra_context=kb_facts,
         )
 
         if not isinstance(result, dict):

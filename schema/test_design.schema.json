@@ -58,6 +58,11 @@
       "type": "array",
       "items": { "$ref": "#/$defs/blockedPoint" }
     },
+    "case_intents": {
+      "type": "array",
+      "description": "S4 用例意图回填：每条 TC 的意图视图（不含执行细节），使本文件成为 意图/风险/覆盖 单一可信源",
+      "items": { "$ref": "#/$defs/caseIntent" }
+    },
     "coverage": {
       "type": "object",
       "properties": {
@@ -259,6 +264,23 @@
           "minItems": 1
         },
         "reason": { "type": "string" }
+      }
+    },
+
+    "caseIntent": {
+      "type": "object",
+      "required": ["id", "title", "test_point_id", "source_facts", "expected_results"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^TC-[A-Z0-9]+-[0-9]{3,}$" },
+        "title": { "type": "string" },
+        "priority": { "type": "string" },
+        "test_point_id": { "type": "string" },
+        "scenario_ref": { "type": "string" },
+        "objective": { "type": "string", "description": "回填自 test_point.objective" },
+        "related_risks": { "type": "array", "items": { "type": "string" } },
+        "source_facts": { "$ref": "#/$defs/sourceFacts" },
+        "related_gaps": { "type": "array", "items": { "type": "string" } },
+        "expected_results": { "type": "array", "items": { "type": "string" } }
       }
     }
   }

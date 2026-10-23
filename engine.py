@@ -56,6 +56,10 @@ class TestEngine:
         evidence_dir: str = "output/evidence",
         capability: Any | None = None,
         validate_plans: bool = True,
+        appium_device_serial: str = "",
+        appium_host: str = "127.0.0.1",
+        appium_port: int = 4723,
+        appium_app_package: str = "",
     ):
         self._env = EnvironmentConfig(
             api_base_url=api_base_url,
@@ -68,6 +72,10 @@ class TestEngine:
             db_name=db_name,
             adb_device_serial=adb_device_serial,
             evidence_dir=evidence_dir,
+            appium_device_serial=appium_device_serial,
+            appium_host=appium_host,
+            appium_port=appium_port,
+            appium_app_package=appium_app_package,
         )
         self._evidence_dir = Path(evidence_dir)
         self._evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -87,11 +95,13 @@ class TestEngine:
         self._api_client = self._build_api_client()
         self._db_client = self._build_db_client()
         self._adb_client = self._build_adb_client()
+        self._appium_client = self._build_appium_client()
 
         self._runner = ExecutionRunner(
             api_client=self._api_client,
             db_client=self._db_client,
             adb_client=self._adb_client,
+            appium_client=self._appium_client,
             evidence_collector=self._collector,
         )
 
@@ -140,12 +150,7 @@ class TestEngine:
         if not self._env.api_base_url and hasattr(captured_api, "base_url"):
             self._env.api_base_url = captured_api.base_url
             self._api_client = self._build_api_client()
-            self._runner = ExecutionRunner(
-                api_client=self._api_client,
-                db_client=self._db_client,
-                adb_client=self._adb_client,
-                evidence_collector=self._collector,
-            )
+            self._runner = self._rebuild_runner()
 
         return self._execute_plan(plan)
 
@@ -176,12 +181,7 @@ class TestEngine:
         if base_url and not self._env.api_base_url:
             self._env.api_base_url = base_url
             self._api_client = self._build_api_client()
-            self._runner = ExecutionRunner(
-                api_client=self._api_client,
-                db_client=self._db_client,
-                adb_client=self._adb_client,
-                evidence_collector=self._collector,
-            )
+            self._runner = self._rebuild_runner()
 
         return self._execute_plans(plans)
 
@@ -210,12 +210,7 @@ class TestEngine:
         if entries and not self._env.api_base_url:
             self._env.api_base_url = entries[0].base_url
             self._api_client = self._build_api_client()
-            self._runner = ExecutionRunner(
-                api_client=self._api_client,
-                db_client=self._db_client,
-                adb_client=self._adb_client,
-                evidence_collector=self._collector,
-            )
+            self._runner = self._rebuild_runner()
 
         return self._execute_plans(plans)
 
@@ -301,6 +296,28 @@ class TestEngine:
             timeout=30,
         )
 
+    def _build_appium_client(self):
+        serial = self._env.appium_device_serial or self._env.adb_device_serial
+        if not serial:
+            return None
+        from tools.appium import AppiumController, APP_PACKAGE
+
+        return AppiumController(
+            device_serial=serial,
+            host=self._env.appium_host,
+            port=self._env.appium_port,
+            app_package=self._env.appium_app_package or APP_PACKAGE,
+        )
+
+    def _rebuild_runner(self) -> ExecutionRunner:
+        return ExecutionRunner(
+            api_client=self._api_client,
+            db_client=self._db_client,
+            adb_client=self._adb_client,
+            appium_client=self._appium_client,
+            evidence_collector=self._collector,
+        )
+
     @staticmethod
     def _adb_available() -> bool:
         import shutil
@@ -312,3 +329,5 @@ class TestEngine:
             self._api_client.close()
         if self._db_client:
             self._db_client.close()
+        if self._runner:
+            self._runner.close()

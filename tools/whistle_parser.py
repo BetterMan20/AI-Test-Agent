@@ -102,16 +102,31 @@ class WhistleParser:
         dir_path: str | Path,
         skip_endpoints: bool = True,
         max_files: int | None = None,
+        latest_first: bool = False,
+        keyword_prescan: str | None = None,
     ) -> list[CapturedAPI]:
-        """Parse all .txt files in a directory."""
+        """Parse .txt files in a directory.
+
+        大目录防护（抓包库可达 9 万+ 文件，全量 json 解析会卡死）：
+        - latest_first=True：按 mtime 倒序，配合 max_files 只解析最近 N 个；
+        - keyword_prescan：先做纯文本包含粗筛，命中才 json 解析。
+        默认参数保持原行为（文件名升序全量解析），向后兼容。
+        """
         path = Path(dir_path)
-        txt_files = sorted(path.glob("*.txt"))
+        if latest_first:
+            txt_files = sorted(path.glob("*.txt"),
+                               key=lambda p: p.stat().st_mtime, reverse=True)
+        else:
+            txt_files = sorted(path.glob("*.txt"))
         if max_files:
             txt_files = txt_files[:max_files]
 
         results: list[CapturedAPI] = []
         for tf in txt_files:
             try:
+                if keyword_prescan and keyword_prescan not in tf.read_text(
+                        encoding="utf-8", errors="replace"):
+                    continue
                 entries = WhistleParser.parse_file(tf)
                 if skip_endpoints:
                     entries = [
@@ -127,9 +142,18 @@ class WhistleParser:
     def find_endpoints(
         dir_path: str | Path,
         keywords: list[str] | None = None,
+        max_files: int | None = None,
+        latest_first: bool = False,
     ) -> dict[str, list[CapturedAPI]]:
-        """Find and group API endpoints by path, optionally filtered by keywords."""
-        all_entries = WhistleParser.parse_directory(dir_path)
+        """Find and group API endpoints by path, optionally filtered by keywords.
+
+        max_files/latest_first：大抓包目录下限制只扫最近 N 个文件（mtime 倒序）。
+        keywords 非空时自动启用文件级文本粗筛，未命中文件不做 json 解析。
+        """
+        prescan = keywords[0] if keywords else None
+        all_entries = WhistleParser.parse_directory(
+            dir_path, max_files=max_files, latest_first=latest_first,
+            keyword_prescan=prescan)
         grouped: dict[str, list[CapturedAPI]] = {}
 
         for entry in all_entries:

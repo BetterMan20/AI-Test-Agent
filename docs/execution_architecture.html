@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Test-Agent · 执行入口与发动机架构</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#161b22; --bg3:#0d1117; --border:#30363d;
+    --txt:#e6edf3; --muted:#8b949e; --acc:#58a6ff; --grn:#3fb950;
+    --amb:#d29922; --red:#f85149; --pur:#bc8cff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1140px;margin:0 auto;padding:32px 24px 64px}
+  header{border-bottom:1px solid var(--border);padding-bottom:18px;margin-bottom:22px}
+  h1{font-size:26px;margin:0 0 6px}
+  h1 small{display:block;font-size:13px;color:var(--muted);font-weight:400;margin-top:4px}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+  h3{font-size:15px;margin:22px 0 8px}
+  p{margin:8px 0}
+  .muted{color:var(--muted)}
+  code{font-family:var(--mono);background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:12.5px}
+  pre{background:#010409;border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow:auto;
+      font-family:var(--mono);font-size:12.5px;line-height:1.6}
+  pre b{color:var(--grn);font-weight:600}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--bg2);color:var(--acc);font-weight:600}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+  .pill{display:inline-block;padding:1px 9px;border-radius:20px;font-size:11.5px;font-weight:600;margin-left:6px;vertical-align:1px}
+  .p-ok{background:rgba(63,185,80,.15);color:var(--grn);border:1px solid rgba(63,185,80,.4)}
+  .p-pend{background:rgba(210,153,34,.15);color:var(--amb);border:1px solid rgba(210,153,34,.4)}
+  .p-warn{background:rgba(248,81,73,.14);color:var(--red);border:1px solid rgba(248,81,73,.4)}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin:12px 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .kpi{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .kpi .n{font-size:26px;font-weight:700;font-family:var(--mono)}
+  .kpi .n.gr{color:var(--grn)} .kpi .n.yl{color:var(--amb)} .kpi .n.bl{color:var(--acc)} .kpi .n.rd{color:var(--red)}
+  .kpi .l{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .flow{font-family:var(--mono);font-size:12.5px;line-height:1.7;background:#010409;border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow:auto}
+  .flow .step{color:var(--acc);font-weight:700}
+  .flow .eng{color:var(--grn);font-weight:700}
+  .flow .dat{color:var(--amb)}
+  .flow .ev{color:var(--pur)}
+  .tag{display:inline-block;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:0 8px;color:var(--acc);font-family:var(--mono);font-size:12px;margin-right:4px}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:4px 0}
+  .note{border-left:3px solid var(--amb);background:rgba(210,153,34,.07);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .warn{border-left:3px solid var(--red);background:rgba(248,81,73,.07);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+  .foot{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>AI-Test-Agent · 执行入口与发动机架构
+    <small>「需求 → test_design.json → execution_plan.json → 执行(API + Appium/ADB + DB) → 采证 → 断言 → 报告/缺陷草稿」链路说明 · 更新 2026-09-23</small>
+  </h1>
+</header>
+
+<h2>一、S0–S7 全景</h2>
+<p>项目从「生成用例的 AI」演进为「探索 App 的 AI 测试 Agent」，阶段划分为：</p>
+<table>
+  <tr><th>阶段</th><th>名称</th><th>产物</th><th>入口/驱动</th></tr>
+  <tr><td><b>S0</b></td><td>App Discovery <span class="pill p-pend">探索层</span></td><td>App Knowledge Base（页面/控件/状态/跳转/截图/XML）</td><td>core/discovery + AppExplorer（长期积累）</td></tr>
+  <tr><td><b>S1</b></td><td>需求理解</td><td>事实抽取（分块+并行）</td><td>agents/fact_extraction</td></tr>
+  <tr><td><b>S2</b></td><td>需求分析</td><td>业务模型 + 缺口检测</td><td>agents/business_model</td></tr>
+  <tr><td><b>S3</b></td><td>测试设计</td><td>模块拆分 + 测试点</td><td>agents/test_design</td></tr>
+  <tr><td><b>S4</b></td><td>用例生成</td><td>文档级测试用例 test_cases.json（<b>中间形态</b>，评审输入，非交付物）</td><td>agents/test_case_gen</td></tr>
+  <tr><td><b>S5</b></td><td>用例评审</td><td>用例校验(LLM) + 质量评审(规则) + 发布门禁；用例意图回填 <code>test_design.json</code></td><td>agents + verification + workflow/case_intent</td></tr>
+  <tr><td><b>S6</b></td><td>执行</td><td>execution_plan.json → 执行 → 证据 → 报告 + 失败缺陷草稿 output/defects/</td><td>execution/（本文档核心）</td></tr>
+  <tr><td><b>S7</b></td><td>报告与决策 <span class="pill p-ok">新增</span></td><td>execution_report.html（人读）+ release_gate.json（机读 GO/GO_WITH_WARNINGS/NO_GO）+ 人工核查清单</td><td>execution/report.py（聚合入口，runner 收尾自动调用）+ execution/business_verdict.py（业务码归因）</td></tr>
+</table>
+
+<h2>二、执行入口与发动机（S6 核心）</h2>
+
+<div class="grid">
+  <div class="kpi"><div class="n bl">5</div><div class="l">已接步骤类型 api/db/adb/appium/manual</div></div>
+  <div class="kpi"><div class="n yl">0</div><div class="l">待接入步骤类型</div></div>
+  <div class="kpi"><div class="n gr">6</div><div class="l">RuleVerifier 断言类型</div></div>
+  <div class="kpi"><div class="n rd">5</div><div class="l">证据采集种类(含截图/logcat)</div></div>
+</div>
+
+<h3>2.1 四模块执行入口速查</h3>
+<table>
+  <tr><th>模块</th><th>公开入口</th><th>CLI</th><th>职责</th></tr>
+  <tr><td>execution/planner.py</td>
+      <td><code>plan_from_test_case</code>(LLM) / <code>plan</code>(确定性) / <code>plan_from_dict</code>(通用) / <code>plan_from_capture</code>(抓包回放)</td>
+      <td><code>python execution/planner.py</code>；汇聚 <code>python -m execution.planner --all</code></td>
+      <td>TC → 可执行 ExecutionPlan（类型/配置/断言/证据）；<code>--all</code> 批量汇聚为 execution_plan.json（meta + plans[]，每条带 traceability）</td></tr>
+  <tr><td>execution/runner.py</td>
+      <td><code>run_plan(plan, ctx)</code> / <code>run_all(plans, factory)</code></td>
+      <td><code>python execution/runner.py [cap] [ep] [serial]</code>；直读计划 <code>--plan-file execution_plan.json</code></td>
+      <td>按步骤类型分发执行 + 采证 + 验证（发动机）；<code>--plan-file</code> 跳过 TC→Plan 派生直读汇聚计划</td></tr>
+  <tr><td>evidence/</td>
+      <td><code>EvidenceCollector.collect_*</code> + <code>EvidenceStore.save/list</code></td>
+      <td>库（无 CLI）</td>
+      <td>证据采集与落盘</td></tr>
+  <tr><td>verification/</td>
+      <td><code>RuleVerifier.check</code> + <code>PlanValidator</code>(前置) + <code>ExecutionValidator</code>(后置)</td>
+      <td>库（无 CLI）</td>
+      <td>6 类断言、计划门禁、执行校验</td></tr>
+</table>
+
+<h3>2.2 整条目标链路（产物分层 · API + Appium/ADB + DB）</h3>
+<div class="flow">
+  assets（需求/S0-KB 系统事实）<br>
+  &nbsp;&nbsp;│<br>
+  <span class="step">S1–S3 设计管线</span> → <span class="dat">意图层</span> <code>output/test_design.json</code>（测试模型/场景/测试点/风险/覆盖，S5 回填 case_intents）<br>
+  &nbsp;&nbsp;│  <span class="step">S4</span> 文档级 TC ── <code>test_cases.json</code>（<b>中间形态</b>，评审输入，非交付物）<br>
+  &nbsp;&nbsp;│  <span class="step">planner</span>  <code>plan_from_test_case</code> / <code>plan</code> / <code>plan_from_capture</code>，或 <code>planner --all</code> 批量汇聚<br>
+  <span class="dat">执行层</span> <code>output/execution_plan.json</code>（meta + plans[]：<code>steps[]:{type, config, assertions, evidence_types}</code> + <code>traceability</code>）<br>
+  &nbsp;&nbsp;│  <span class="tag">前置门禁</span> <code>verification.PlanValidator.validate</code><br>
+  &nbsp;&nbsp;▼<br>
+  <b>发动机 ExecutionRunner.run_plan()</b><br>
+  &nbsp;&nbsp;├ <span class="eng">_dispatch(step)</span> 按 <code>step_type</code> 路由：<br>
+  &nbsp;&nbsp;│&nbsp;&nbsp;· <code>api</code>  → APIClient.request(method/path/headers/body/data/params)<br>
+  &nbsp;&nbsp;│&nbsp;&nbsp;· <code>db</code>   → DBClient.query|execute(query, params)<br>
+  &nbsp;&nbsp;│&nbsp;&nbsp;· <code>adb</code>  → ADBClient.shell(command)（设备控制 + 证据采集）<br>
+  &nbsp;&nbsp;│&nbsp;&nbsp;· <code>appium</code> → <span class="tag">已接入</span> AppiumController（UI 业务操作：By.ID 定位/tap/输入，懒启动 server+session）<br>
+  &nbsp;&nbsp;│&nbsp;&nbsp;· <code>manual</code>→ skip（返回 status=skip）<br>
+  &nbsp;&nbsp;│&nbsp;&nbsp;· <code>未知</code> → error（<code>No tool configured for step type</code>）<br>
+  &nbsp;&nbsp;├ <span class="eng">_verify(step)</span> 逐断言 → <code>RuleVerifier.check</code> → passed/failed<br>
+  &nbsp;&nbsp;└ <span class="eng">_collect_evidence</span> 按 <code>evidence_types</code> → <code>EvidenceCollector.*</code> → <code>EvidenceStore.save</code><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ev">api</span> request/response/headers/execution四件套 · <span class="ev">db</span> query/snapshot/execution · <span class="ev">adb</span> command/output/execution + 截图/logcat · <span class="ev">appium</span> action/page_source/execution<br>
+  &nbsp;&nbsp;▼<br>
+  <span class="dat">结果层</span> <code>output/execution_result.json</code>（TestCaseResult + ExecutionResult，自动判定 pass/fail/error）<br>
+  &nbsp;&nbsp;│  <span class="tag">失败</span> → <code>output/defects/&lt;tc_id&gt;.{json,md}</code> 缺陷草稿（fail=疑似产品缺陷 / error=疑似环境问题，人工确认后提单/PR）<br>
+  &nbsp;&nbsp;▼<br>
+  <span class="step">S7 报告与决策</span> <code>python -m execution.report</code>（runner 收尾自动调用）<br>
+  &nbsp;&nbsp;├ 聚合：execution_result.json + defects → 业务归因分布（business_verdict）<br>
+  &nbsp;&nbsp;├ <span class="tag">决策</span> Release Gate：<code>release_gate.json</code>（GO / GO_WITH_WARNINGS 环境归因 / NO_GO fail 或未决缺陷）<br>
+  &nbsp;&nbsp;└ <span class="tag">人读</span> <code>execution_report.html</code>（决策块 + 两层结论 + 缺陷区 + 人工核查清单）<br>
+</div>
+
+<h3>2.3 步骤类型状态矩阵</h3>
+<table>
+  <tr><th>类型</th><th>状态</th><th>作用</th><th>执行/工具</th></tr>
+  <tr><td><code>api</code></td><td><span class="pill p-ok">已接入</span></td><td>HTTP 业务接口（含抓包原样回放）</td><td>APIClient.request</td></tr>
+  <tr><td><code>db</code></td><td><span class="pill p-ok">已接入</span></td><td>数据库校验（query / verify phase）</td><td>DBClient.query|execute</td></tr>
+  <tr><td><code>adb</code></td><td><span class="pill p-ok">已接入</span></td><td>设备控制 + UI 快照 + 证据采集</td><td>ADBClient.shell</td></tr>
+  <tr><td><code>manual</code></td><td><span class="pill p-ok">已接入</span></td><td>人工步骤（skip）</td><td>—</td></tr>
+  <tr><td><code>appium</code></td><td><span class="pill p-ok">已接入</span></td><td><b>UI 业务操作</b>（By.ID 定位/tap/输入，操作后回吐 page_source 供断言）</td><td>tools.appium.AppiumController</td></tr>
+</table>
+<div class="note">
+  <b>现状</b>：<code>appium</code> 已接线为第 5 种步骤类型——<code>planner</code> 归一化 appium 步骤、
+  <code>plan_validator</code> 校验（VALID_STEP_TYPES 含 appium）、<code>runner._dispatch</code> 按
+  <code>operation</code>（tap/input_text/swipe/back/find/page_source…）懒启动 server+session 后分派到
+  AppiumController，操作后回吐 page_source 供 <code>text_contains</code> 断言并采集
+  appium_action/page_source/execution 三件套。至此已实现「执行 API + Appium/ADB + DB」的混合编排。
+  环境配置见 <a href="appium_env_setup.md" style="color:var(--acc)">docs/appium_env_setup.md</a>。
+</div>
+
+<h2>三、分线说明</h2>
+
+<h3>3.1 TC → Plan → 执行 线</h3>
+<pre>
+test_cases.json → <code>plan(test_case, capability=None)</code> 确定性
+                → <code>plan_from_test_case(test_case, capability=APICapability)</code> LLM（注入抓包 API 知识）
+                → ExecutionPlan
+                → [PlanValidator.validate]（前置门禁：步骤类型/配置完备/API来自Capability/断言来自TC）
+      → ExecutionRunner.run_plan(plan, ctx)
+
+汇聚直读（产物拆分链路）：
+  python -m execution.planner --all --no-llm            # test_cases.json → output/execution_plan.json
+  python execution/runner.py --plan-file output/execution_plan.json   # 跳过 TC→Plan 派生，直读执行
+</pre>
+
+<h3>3.2 抓包 → 回放 线</h3>
+<pre>
+Whistle 抓包 → WistleParser.find_endpoints → CapturedAPI
+  → <code>plan_from_capture(captured)</code>（step=api，断言复现 status_code + ret）
+  → 或 replay/capture_replay.py CaptureReplay（高层：scan → pick_successful → 原样回放）
+  → 同一 ExecutionRunner 链路
+</pre>
+<div class="note">
+  项目经验：回放必须用 <code>req_body_raw</code> 原始字符串经 <code>data=</code> 发送，因 sign 按 h_ts+token+body 原始字节计算，任何重排都会 sign 失配（ret=-1）。<code>plan_from_capture</code> 目前用 <code>req_body</code>(dict) 组装，存在该隐患，回放建议走 CaptureReplay。
+</div>
+
+<h3>3.3 证据采集 线</h3>
+<pre>
+EvidenceStore(base_dir) + EvidenceCollector(store)
+  api → collect_api_evidence   (request / response / headers / execution 四件套)
+  db  → collect_db_evidence    (db_query / db_snapshot / db_execution)
+  adb → collect_adb_evidence   (adb_command / adb_output / adb_execution) + 按需 screenshot / logcat
+  text/collect_text
+  落盘 → EvidenceStore.save → Evidence.path 回填 StepResult.evidence_refs
+</pre>
+
+<h3>3.4 6 种断言（verification/RuleVerifier.check）</h3>
+<table>
+  <tr><th>类型</th><th>实现</th><th>示例</th></tr>
+  <tr><td>status_code</td><td>verify_status_code</td><td>期望 200</td></tr>
+  <tr><td>json_path</td><td>verify_json_path</td><td>$.ret 期望 1</td></tr>
+  <tr><td>text_contains</td><td>verify_text_contains</td><td>页面源含「红包」</td></tr>
+  <tr><td>regex</td><td>verify_regex</td><td>时间格式</td></tr>
+  <tr><td>count</td><td>verify_count</td><td>列表长度</td></tr>
+  <tr><td>db_rows</td><td>verify_db_rows</td><td>查询行数/内容</td></tr>
+</table>
+
+<h2>四、报告产物与查看</h2>
+<table>
+  <tr><th>产物</th><th>位置</th><th>查看</th></tr>
+  <tr><td>意图层 test_design.json</td><td>output/test_design.json</td><td>JSON（S1–S3 + S5 回填 case_intents）</td></tr>
+  <tr><td>执行层 execution_plan.json</td><td>output/execution_plan.json</td><td>planner --all 汇聚（schema/execution_plan_set.schema.json）</td></tr>
+  <tr><td>失败缺陷草稿</td><td>output/defects/&lt;tc_id&gt;.{json,md}</td><td>.md 人读，人工确认后提单/PR</td></tr>
+  <tr><td>S6 批量回归人读报告</td><td>output/evidence_batch_regression/execution_report.html</td><td>浏览器打开</td></tr>
+  <tr><td>S6 执行结果 JSON</td><td>output/.../execution_result.json</td><td>report_html 转换</td></tr>
+  <tr><td>探索型 QA 报告</td><td>output/qa/cycle_report.json → .html</td><td>core/qa/report_html</td></tr>
+  <tr><td>Planner 计划</td><td>output/planner/plan_&lt;tc&gt;.json + .md</td><td>.md 人读</td></tr>
+  <tr><td>KB / 历史</td><td>output/app_kb/higo/ · knowledge/historical.yaml</td><td>长期积累</td></tr>
+</table>
+<pre>
+S6 报告生成：python -m execution.report_html              # output/.../execution_result.json → .html
+            python -m core.qa.report_html                 # cycle_report.json → .html
+</pre>
+
+<h2>五、常用执行入口（汇总）</h2>
+<pre>
+python main.py                                  # S1–S5 设计管线（读 input/，产出 test_design.json 意图层）
+python execution/runner.py [cap] [ep] [serial]  # S6 批量执行（默认 D:/higo-api send_red_packet）
+python execution/planner.py                     # TC→Plan 桥（默认 output/test_cases.json 第一条）
+python -m execution.planner --all --no-llm      # 汇聚 execution_plan.json（执行层）
+python execution/runner.py --plan-file output/execution_plan.json  # 直读计划执行（失败自动落缺陷草稿）
+python -m execution.report                      # 最后一公里：JSON→人读HTML+release_gate.json+核查清单
+python -m unittest tests.test_artifact_split    # 产物拆分端到端回归
+python tests/demo_real_appium.py                # 真机 Appium 混合编排冒烟（--drill 追加业务下钻）
+python -m orchestrator.run_strategy --mode regression   # 分层决策 + 三层执行
+python -m stability.runner --events 40                  # 稳定性层
+python -m core.qa.run --project higo --room 14775       # 探索型七阶段（S0 认识→…→学习）
+</pre>
+
+<div class="foot">
+  AI-Test-Agent · 执行入口与发动机 · 说明当前已接入 5 类步骤(api/db/adb/appium/manual)，
+  已实现「执行 API + Appium/ADB + DB」混合编排。
+  产物三层契约：意图层 test_design.json → 执行层 execution_plan.json → 结果层 execution_result.json + 证据 + 缺陷草稿。
+  内容与代码一致（execution/runner.py、execution/planner.py、execution/defect_draft.py、evidence/、verification/、engine.py），非设计稿。
+</div>
+
+</div>
+</body>
+</html>

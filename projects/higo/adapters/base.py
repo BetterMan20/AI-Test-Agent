@@ -11,10 +11,10 @@ from pathlib import Path
 from core.adapters.base import TTestAdapter, ActionResult
 from core.config import loader
 
-from projects.higo.adapters import redpacket, replay
+from projects.higo.adapters import redpacket, replay, claim_attack, discover
 
 # 该适配器声明的业务动作（app/菜单据此生成入口；换动作不改 Core）
-ACTIONS = ["send_red_packet", "send_gift", "enter_voice_room"]
+ACTIONS = ["send_red_packet", "send_gift", "enter_voice_room", "red_packet_claim", "discover_red_packet"]
 
 
 def _adb_dump_state(serial: str) -> str | None:
@@ -50,6 +50,17 @@ class HigoAdapter(TTestAdapter):
             return self._run_replay(action, evd)
         if action == "enter_voice_room":
             return self._run_replay(action, evd)
+        if action == "red_packet_claim":
+            # 历史Bug反推·状态一致性攻击：专门攻击 status×open_at×server_time×UI×刷新 的一致性
+            rc, summary = claim_attack.run(self.project, self.env_cfg.env, evd)
+            return ActionResult(action=action, ok=(rc == 0),
+                                status=summary.get("status", "PASS" if rc == 0 else "FAIL"),
+                                summary=summary, evidence=summary.get("evidence_root", []))
+        if action == "discover_red_packet":
+            # S0 App Discovery：Agent 自主下钻 Room→红包入口→普通/世界红包→待开奖/可领取，落库
+            summary = discover.run_discovery(
+                self.project, self.env_cfg.env, live=True, source="s0:app-discovery")
+            return ActionResult(action=action, ok=True, status="PASS", summary=summary)
         return ActionResult(action=action, ok=False, status="UNKNOWN",
                             error=f"未知业务动作: {action}（支持: {ACTIONS}）")
 

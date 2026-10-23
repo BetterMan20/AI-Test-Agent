@@ -58,7 +58,7 @@ class ValidationResult:
         }
 
 
-VALID_STEP_TYPES = {"api", "db", "adb", "manual"}
+VALID_STEP_TYPES = {"api", "db", "adb", "appium", "manual"}
 
 
 class PlanValidator:
@@ -143,6 +143,8 @@ class PlanValidator:
                 issues.extend(self._check_db_config(step))
             elif step.step_type == "adb":
                 issues.extend(self._check_adb_config(step))
+            elif step.step_type == "appium":
+                issues.extend(self._check_appium_config(step))
         return issues
 
     @staticmethod
@@ -239,6 +241,88 @@ class PlanValidator:
                 detail={"missing": "command"},
             ))
 
+        return issues
+
+    # ── 规则 2b: appium config 完整性 ────────────────────
+
+    @staticmethod
+    def _check_appium_config(step: ExecutionStep) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        config = step.action
+        known_ops = {
+            "session_start", "session_close", "page_source",
+            "tap", "tap_by_keyword", "input_text", "find", "find_text", "find_desc",
+            "tap_point", "swipe", "back",
+        }
+        op = config.get("operation")
+        if not op:
+            issues.append(ValidationIssue(
+                rule="config_incomplete",
+                severity="error",
+                step_id=step.step_id,
+                message="Appium 步骤缺少 operation",
+                detail={"missing": "operation"},
+            ))
+            return issues
+        if op not in known_ops:
+            issues.append(ValidationIssue(
+                rule="unknown_appium_op",
+                severity="error",
+                step_id=step.step_id,
+                message=f"未知 Appium 操作: '{op}'",
+                detail={"known_ops": list(known_ops)},
+            ))
+
+        if op in ("tap", "input_text", "find"):
+            if not config.get("target"):
+                issues.append(ValidationIssue(
+                    rule="config_incomplete",
+                    severity="error",
+                    step_id=step.step_id,
+                    message=f"Appium 操作 '{op}' 缺少 target（resource-id）",
+                    detail={"missing": "target"},
+                ))
+        elif op == "tap_by_keyword" and not config.get("keyword"):
+            issues.append(ValidationIssue(
+                rule="config_incomplete",
+                severity="error",
+                step_id=step.step_id,
+                message="tap_by_keyword 缺少 keyword",
+                detail={"missing": "keyword"},
+            ))
+        elif op == "find_text" and not config.get("text"):
+            issues.append(ValidationIssue(
+                rule="config_incomplete",
+                severity="error",
+                step_id=step.step_id,
+                message="find_text 缺少 text",
+                detail={"missing": "text"},
+            ))
+        elif op == "find_desc" and not config.get("desc"):
+            issues.append(ValidationIssue(
+                rule="config_incomplete",
+                severity="error",
+                step_id=step.step_id,
+                message="find_desc 缺少 desc",
+                detail={"missing": "desc"},
+            ))
+        elif op == "tap_point":
+            if "x" not in config or "y" not in config:
+                issues.append(ValidationIssue(
+                    rule="config_incomplete",
+                    severity="error",
+                    step_id=step.step_id,
+                    message="tap_point 缺少 x/y",
+                    detail={"missing": ["x", "y"]},
+                ))
+        elif op == "swipe" and (not isinstance(config.get("swipe"), (list, tuple)) or len(config["swipe"]) < 4):
+            issues.append(ValidationIssue(
+                rule="config_incomplete",
+                severity="error",
+                step_id=step.step_id,
+                message="swipe 缺少 [x1,y1,x2,y2]",
+                detail={"missing": "swipe"},
+            ))
         return issues
 
     # ── 规则 3: API endpoint 来自 Capability ──────────────

@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from replay.capture_replay import CaptureReplay, ReplayOutcome
+from execution.business_verdict import classify_business_verdict, verdict_note
 from execution.ui_flow import UIFlowExecutor
 from execution.planner import ExecutionPlan, ExecutionPlanner
 from engine import TestEngine
@@ -43,10 +44,20 @@ class RegressionConfig:
     device_serial: str = ""
     tc_cases: list[dict[str, Any]] = field(default_factory=list)
     tc_field: str = "test_cases"         # 若 tc_cases 为空，从该 JSON 文件的字段读取
-    adb_verify: bool = True              # 每条 TC 是否附加步骤2 ADB面板验证
-    ui_flow: bool = True                 # 是否额外跑一次完整 UI 交互下钻
+    plan_file: str = ""                  # 若非空：直读 execution_plan.json（汇聚计划），跳过 TC→Plan 派生
+    adb_verify: bool = True              # 每条 TC 是否附加步骤2(ADB dump 面板)验证
+    ui_flow: bool = True                 # 是否额外跑一次完整 UI 交互下钻（ADB 版）
     max_ui_steps: int = 4
     replay_headers: dict[str, str] = field(default_factory=dict)
+
+    # Appium 业务 UI 自动化（原语C 内）：开 then 用 Appium 按关键词下钻，替换 ADB dump 面板步骤
+    appium_flow: bool = False            # True = 用 Appium 做 UI 业务自动化（需 Appium-Python-Client 已装 + 设备在线）
+    appium_entry_keyword: str = "red|packet|红包|gift|礼物|办"
+    appium_panel_keyword: str = "send|发送|coin|金币|confirm|发红包"
+
+    # 闭环尾段：失败 TC 自动落本地缺陷草稿（output/defects/<tc_id>.{json,md}）
+    defect_draft: bool = True
+    defect_dir: str = "output/defects"
 
 
 @dataclass
@@ -58,6 +69,8 @@ class RegressionReport:
     api_replay: list[dict[str, Any]]   # 端点回放（原语A）
     tc_results: list[dict[str, Any]]   # 26 条 TC（原语C）
     ui_flow: list[dict[str, Any]]      # UI 交互（原语B）
+    appium_flow: bool = False          # 原语C 是否用 Appium 做 UI 业务自动化
+    appium_steps: int = 0              # 执行的 Appium 步骤数
     summary: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -66,11 +79,19 @@ class RegressionReport:
             "capture_dir": self.capture_dir,
             "endpoint_substring": self.endpoint_substring,
             "evidence_root": self.evidence_root,
+            "appium_flow": self.appium_flow,
+            "appium_steps": self.appium_steps,
             "summary": self.summary,
             "api_replay": self.api_replay,
             "tc_results": self.tc_results,
             "ui_flow": self.ui_flow,
         }
+
+    def _count_appium_steps(self) -> int:
+        return sum(
+            1 for r in self.tc_results
+            for s in r.get("steps", []) if s.get("type") == "appium"
+        )
 
 
 class BatchRegressor:
@@ -80,6 +101,7 @@ class BatchRegressor:
         self.cfg = config
         self._capture = CaptureReplay(config.capture_dir, config.evidence_root)
         self._engine = self._build_engine()
+        self._last_plans: list = []
 
     # ── 环境 ──────────────────────────────────────────────
 
@@ -89,6 +111,7 @@ class BatchRegressor:
             api_headers=self.cfg.api_headers,
             api_timeout=60,
             adb_device_serial=self.cfg.device_serial,
+            appium_device_serial=self.cfg.device_serial if self.cfg.appium_flow else "",
             evidence_dir=str(self.cfg.evidence_root),
             validate_plans=False,
         )
@@ -186,8 +209,9 @@ class BatchRegressor:
             "evidence_types": ["api_response"],
         }]
 
-        # 步骤2：ADB 面板验证（dump 成功即通过；红包/面板关键字由原语B 完整UI流程校验）
-        if self.cfg.adb_verify:
+        # 步骤2：UI 业务验证。appium_flow 用 Appium 按关键词下钻红包/礼物入口→发送面板；
+        #         否则退回 ADB dump 面板验证（dump 成功即通过；红包/面板关键字由原语B 完整UI流程校验）
+        if self.cfg.adb_verify and not self.cfg.appium_flow:
             tag = f"br{idx:03d}"
             adb_cmd = (
                 "input keyevent KEYCODE_WAKEUP; wm dismiss-keyguard; "
@@ -202,6 +226,31 @@ class BatchRegressor:
                 "assertions": [{"type": "text_contains", "expected": "<hierarchy"}],
                 "evidence_types": ["screenshot", "logcat"],
             })
+        elif self.cfg.appium_flow:
+            # Appium 业务 UI 自动化：先 dump 页面，再按入口关键词下钻并断言面板出现
+            steps.append({
+                "step_id": 2,
+                "type": "appium",
+                "description": "Appium dump 当前页面（UI 业务自动化）",
+                "config": {"operation": "page_source"},
+                "assertions": [],
+                "evidence_types": ["appium_snapshot"],
+            })
+            steps.append({
+                "step_id": 3,
+                "type": "appium",
+                "description": f"Appium 按关键词下钻入口({self.cfg.appium_entry_keyword})→发送面板",
+                "config": {
+                    "operation": "tap_by_keyword",
+                    "keyword": self.cfg.appium_entry_keyword,
+                    "timeout": 10,
+                },
+                "assertions": [{
+                    "type": "text_contains",
+                    "expected": self.cfg.appium_panel_keyword,
+                }],
+                "evidence_types": ["appium_snapshot", "screenshot"],
+            })
 
         return ExecutionPlanner.plan_from_dict({
             "tc_id": tc_id,
@@ -212,6 +261,8 @@ class BatchRegressor:
         })
 
     def run_tc_batch(self) -> list[dict[str, Any]]:
+        if self.cfg.plan_file:
+            return self._run_plans_from_file()
         tcs = self.collect_tc_cases()
         if not tcs:
             return []
@@ -226,6 +277,7 @@ class BatchRegressor:
             self.build_tc_plan(tc, send_entry, i)
             for i, tc in enumerate(tcs, 1)
         ]
+        self._last_plans = plans
         # 用抓包 host（或显式 base_url）驱动引擎，否则相对路径回放会因无 host 失败
         engine = self._build_engine(send_entry.base_url)
         try:
@@ -234,18 +286,39 @@ class BatchRegressor:
             engine.close()
         return [self._tc_result_row(r, send_entry) for r in exec_result.results]
 
+    def _run_plans_from_file(self) -> list[dict[str, Any]]:
+        """直读汇聚计划（planner --all 产物）：计划即契约，执行层不再二次派生。"""
+        from execution.planner import ExecutionPlanner
+
+        doc = json.loads(Path(self.cfg.plan_file).read_text(encoding="utf-8"))
+        raw_plans = doc.get("plans") if isinstance(doc, dict) else doc
+        if not raw_plans:
+            return []
+        plans = [ExecutionPlanner.plan_from_dict(p) for p in raw_plans]
+        self._last_plans = plans
+        engine = self._build_engine(self.cfg.base_url)
+        try:
+            exec_result = engine.run_plans(plans)
+        finally:
+            engine.close()
+        return [self._tc_result_row(r, None) for r in exec_result.results]
+
     @staticmethod
     def _tc_result_row(result, captured) -> dict[str, Any]:
         """取 ExecutionResult.test_case 的 step 结构，并为 step1 补业务码观测
-        (replayed_ret / reproduced)。"""
+        (replayed_ret / reproduced / business_verdict 归因)。"""
         row = result.to_dict()
         steps = row.get("steps", [])
         for s in steps:
             if s.get("step_id") == 1 and s.get("type") == "api":
                 ret = BatchRegressor._extract_ret(result, 0)
+                cap_ret = getattr(captured, "res_ret", None)
                 s["replayed_ret"] = ret
-                s["captured_ret"] = getattr(captured, "res_ret", None)
-                s["reproduced"] = (ret == getattr(captured, "res_ret", None))
+                s["captured_ret"] = cap_ret
+                s["reproduced"] = (ret == cap_ret)
+                verdict = classify_business_verdict(cap_ret, ret)
+                s["business_verdict"] = verdict
+                s["business_note"] = verdict_note(verdict)
         return row
 
     @staticmethod
@@ -293,15 +366,34 @@ class BatchRegressor:
             tc_results=tc_results,
             ui_flow=ui_flow,
         )
-        report.summary = self._summary(api_replay, tc_results, ui_flow)
+        report.appium_flow = self.cfg.appium_flow
+        report.appium_steps = report._count_appium_steps()
+        report.summary = self._summary(report)
+
+        # 闭环尾段：失败 TC → 本地缺陷草稿（人工确认后再提单/PR）
+        if self.cfg.defect_draft and tc_results:
+            from execution.defect_draft import save_defect_drafts
+            drafts = save_defect_drafts(
+                tc_results, self._last_plans, self.cfg.defect_dir,
+                env={
+                    "device_serial": self.cfg.device_serial,
+                    "base_url": self.cfg.base_url or "",
+                    "capture_dir": str(self.cfg.capture_dir),
+                    "appium_flow": self.cfg.appium_flow,
+                },
+            )
+            if drafts:
+                report.summary["defects"] = {
+                    "total": len(drafts),
+                    "dir": str(self.cfg.defect_dir),
+                }
+                print(f">> 缺陷草稿: {len(drafts)} 份 → {self.cfg.defect_dir}", flush=True)
         return report
 
     @staticmethod
-    def _summary(
-        api_replay: list[dict[str, Any]],
-        tc_results: list[dict[str, Any]],
-        ui_flow: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+    def _summary(report: "RegressionReport") -> dict[str, Any]:
+        api_replay, tc_results, ui_flow = (
+            report.api_replay, report.tc_results, report.ui_flow)
         api_pass = sum(1 for o in api_replay if o.get("passed"))
         tc_status = {
             s: sum(1 for r in tc_results if r.get("status") == s)
@@ -311,10 +403,22 @@ class BatchRegressor:
             s: sum(1 for u in ui_flow if u.get("status") == s)
             for s in ("pass", "error", "skip")
         }
+        # 业务层观察分布（协议层 pass 之外独立归因，见 business_verdict）
+        biz_dist: dict[str, int] = {}
+        for r in tc_results:
+            for s in r.get("steps", []):
+                if s.get("step_id") == 1 and s.get("type") == "api" and "business_verdict" in s:
+                    v = s["business_verdict"]
+                    biz_dist[v] = biz_dist.get(v, 0) + 1
         return {
             "api_replay": {"total": len(api_replay), "pass": api_pass},
             "tc_batch": {"total": len(tc_results), **tc_status},
+            "business_observation": biz_dist,
             "ui_flow": {"total": len(ui_flow), **ui_status},
+            "appium": {
+                "enabled": report.appium_flow,
+                "steps": report.appium_steps,
+            },
         }
 
     def save_report(self, report: RegressionReport) -> Path:

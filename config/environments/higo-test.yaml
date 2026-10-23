@@ -23,6 +23,10 @@ device:
   wake_commands:
     - "input keyevent KEYCODE_WAKEUP"
     - "wm dismiss-keyguard"
+  # 是否允许 P-06 探针执行系统级 svc wifi/data 断网切换。
+  # 注意：当前测试承载(三星 a53x 镜像)对 svc 网络切换极脆弱，真断网会打崩 adb/设备，
+  #     默认 false=降级为「仅观测不真断网」并诚实记录；设为 true 由自己承担风险。
+  network_toggle: false
 
 db:
   host: ""

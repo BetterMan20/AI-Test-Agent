@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI-Test-Agent 项目状态报告 · 2026-09-11</title>
+<title>AI-Test-Agent 项目状态报告 · 2026-09-16</title>
 <style>
 :root {
   --bg: #0d1117;
@@ -82,6 +82,9 @@ li { margin: 4px 0; }
 .small { font-size: 13px; color: var(--text-muted); }
 .srcline { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 13px; }
+.flow { font-family: 'SFMono-Regular', Consolas, Menlo, monospace; font-size: 13px; line-height: 1.9; }
+.flow .good { color: var(--success); }
+.flow .warn { color: var(--warning); }
 @media (max-width: 700px) {
   .statgrid { grid-template-columns: repeat(2, 1fr); }
   .wrap { padding: 28px 16px 60px; }
@@ -94,256 +97,174 @@ footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border
 
 <header class="intro">
   <div class="meta">
-    <span>2026-09-11</span>
-    <span>v0.8 · 三层解耦</span>
-    <span>HIGO 发红包</span>
-    <span>红包优化 E2E 已跑</span>
-    <span>通用引擎 + 项目适配器</span>
+    <span>2026-09-16</span>
+    <span>v0.9 · 探索型 AI 测试 Agent</span>
+    <span>S0 App Discovery / Knowledge Base</span>
+    <span>全景 QA 循环 × LLM 三环</span>
+    <span>历史 Bug 反推</span>
   </div>
   <h1>AI-Test-Agent 项目状态报告</h1>
-  <p class="lead">一条「从需求 → 用例 → 真实执行回放 + 自动采证据 × 自动出结论」的测试流水线，定位是提升测试效率、保证测试质量。</p>
+  <p class="lead">一条「认识 → 建模 → 找风险 → 攻击 → 验证 → 回归 → 学习」的 AI QA 基础设施，定位是让测试 Agent 从"会生成测试用例的 AI"迈向"会探索 App 并长期积累质量的 AI 测试 Agent"。</p>
   <div class="concl">
-    <strong>核心结论：</strong>S1–S5（需求→用例）已完整跑通；S6 已在 HIGO 发红包上完成<strong>真实执行冒烟与全量回归</strong>——26 条用例协议层全通过、自动采证据、自动区分「协议可达」与「后端业务状态码」，并把「连续批量回放触发后端防重放(ret=-1)」这一接口边界如实暴露。本轮完成了<strong>架构解耦（Core / Projects / Execution 三层 + 项目适配器）</strong>：Core 只做通用测试编排、不含任何 HIGO 业务硬编码；发红包/送礼/进房等业务动作全部下沉到 <code>projects/higo/adapters</code>，经统一 CLI <code>python -m app run --project higo --env test --action &lt;业务动作&gt;</code> 执行。三个业务能力均已真机抓包回放验证：<code>send_red_packet</code>（Phase B UI 下钻 PASS）、<code>send_gift</code>（ret=1 复现 PASS）、<code>enter_voice_room</code>（ret=1 复现 PASS）。
+    <strong>核心结论：</strong>在既有 S1–S6 执行引擎（v0.8，发红包/送礼/进房三能力抓包回放跑通、三层解耦）之上，本轮完成了<strong>三件里程碑</strong>——
+    <strong>① S0 长期 App Knowledge Base + App Explorer</strong>：Agent 自主下钻并落盘 页面/控件/状态/跳转/截图/XML，反幻觉约束（只记真机实测，不伪造节点）已生效；
+    <strong>② 一致性攻击引擎 + 历史 Bug 反推</strong>：在 Room 14775 真机复现"OPEN + 未开始领取"状态冲突并留档证据（<code>reproduce_report.json</code>/ui/png）；
+    <strong>③ 全景 QA 循环 + LLM 三环</strong>：<code>认识→学习</code> 七阶段跑通，且按你定的方向（<strong>让 LLM 拿到越来越完整的系统事实 + 越来越强的执行能力 + 越来越多的历史质量知识</strong>）接好三环——A=KB→LLM 系统事实注入、B=LLM 在可达原语上编排攻击、C=历史记忆进找风险，三环全部"真实消费"。历史质量库已做根因级去重（4→2 条、幂等、可增量不膨胀）。整体定位从"生成用例/跑回归"升级为<strong>持续让 LLM 拥有更足输入、让 KB 与历史长期自积累</strong>的 Agent。
   </div>
 </header>
 
-<h2>1. 项目目标与当前处境</h2>
-<p>项目最初目标是<strong>提升测试效率、保证测试质量</strong>。复盘后有一个诚实的判断：早期大量投入集中在 S1–S5 的「测试设计自动化」（把需求变成用例），而它在已有经验的团队里往往<strong>不是效率的直接杠杆</strong>，甚至新增评审负担。真正同时撬动效率和质量的，是 <strong>S6 执行/回归</strong>：一键回放、自动采证据、自动判结论，把手工回归的人时省下来，也把漏测/误判暴露出来。</p>
-<p>因此本轮聚焦点从「生成更多用例」转向「把回归执行真正跑起来并拿出可复用的成果」。</p>
+<h2>1. 项目目标与定位演进</h2>
+<p>v0.8 判定的"真正杠杆在 S6 执行/回归"仍然成立，且已落地（真实批量回归 + 三层解耦）。本轮把目标从「把回归执行跑起来」进一步推向<strong>「让测试 Agent 自动认识并守卫一个 App」</strong>：</p>
+<div class="statgrid">
+  <div class="stat"><div class="num">S0</div><div class="lbl">App Knowledge Base<br>长期积累，非一次性跑完</div></div>
+  <div class="stat"><div class="num">7</div><div class="lbl">全景 QA 循环阶段<br>认识→…→学习</div></div>
+  <div class="stat"><div class="num">3</div><div class="lbl">LLM 三环<br>A 事实 / B 执行 / C 历史</div></div>
+  <div class="stat"><div class="num good">闭环</div><div class="lbl">执行→学习→回填 KB/历史<br>供下一轮找风险复用</div></div>
+</div>
+<p>关键点（回应"不是让 LLM 变得更聪明"）：<strong>模型权重从未改动</strong>。所有的"变强"都发生在输入端——更全的系统事实（A）、更多可执行原语与执行闭环（B）、更厚的历史质量知识（C）。真正的执行能力天花板在<strong>可达原语仓库</strong>：原语少，LLM 能选的路径就少；原语多，它的选择空间才大。</p>
 
-<h2>2. S1–S6 架构与状态</h2>
+<h2>2. S0 App Discovery / Knowledge Base（本轮新增）</h2>
+<p>把"认识 App"提升为独立阶段，产出<strong>长期累积的 App Knowledge Base</strong>，Agent 从此能自己发现并记住页面结构，而不是被动等人喂参数。</p>
 <table>
-  <thead><tr><th>阶段</th><th>内容</th><th>关键机制</th><th>产物</th><th>状态</th></tr></thead>
+  <thead><tr><th>产出</th><th>位置</th><th>说明</th></tr></thead>
   <tbody>
-    <tr><td>S1 需求理解</td><td>解析 + 事实抽取</td><td>分块防截断、内引号转义修复、16 类 Fact 白名单</td><td><code>parsed.json</code> <code>facts.json</code></td><td><span class="tag ok">跑通</span></td></tr>
-    <tr><td>S2 需求分析</td><td>业务建模 + 缺口</td><td>25 Fact/块并行分块建模 + 确定性合并（防 LLM 截断）；<code>source_facts</code> 溯源防幻觉</td><td><code>analysis.json</code> <code>gaps.json</code></td><td><span class="tag ok">跑通</span></td></tr>
-    <tr><td>S3 测试设计</td><td>模块 + 测试点</td><td>先出测试模型（对象/状态/条件/流程/风险点）再生用例</td><td><code>test_design.json</code></td><td><span class="tag ok">跑通</span></td></tr>
-    <tr><td>S4 用例生成</td><td>生成用例</td><td>四级嵌套 + 链路式步骤</td><td><code>test_cases.json</code>(26条)</td><td><span class="tag ok">跑通</span></td></tr>
-    <tr><td>S5 用例评审</td><td>校验+评审+门禁</td><td>校验(LLM)+评审/门禁(确定性)</td><td><code>validation_result.json</code>…</td><td><span class="tag ok">跑通</span></td></tr>
-    <tr><td>S6 批量回归</td><td>抓包回放+TC批量+ADB/UI</td><td>三套可复用执行原语；协议/业务两层断言</td><td><code>execution_result.json</code></td><td><span class="tag ok">真实跑通(冒烟+全量)</span></td></tr>
+    <tr><td><code>AppKnowledgeBase</code>/<code>DiscoveredNode</code></td><td><code>core/discovery/knowledge.py</code></td><td>文件式 KV 长期库；节点五类（screen/container/control/state/navigation）；<code>upsert</code> 增量合并 + <code>to_tree</code> 打印知识树</td></tr>
+    <tr><td><code>AppExplorer</code></td><td><code>core/discovery/explorer.py</code></td><td>递归下钻：探屏 → 析入口 → 打开 → 落库；带收敛护栏（同入口坐标只开一次、无新入口即停）</td></tr>
+    <tr><td>Higo 探针 <code>HigoRedPacketDiscoverer</code></td><td><code>projects/higo/adapters/discover.py</code></td><td>ADB 自主 dump → 解析真实 XML 成控件/状态/入口 → tap 下钻；复用 claim_attack 定位信号（<code>tv_red_packet_status_overlay</code>）</td></tr>
+    <tr><td>回填管道</td><td><code>discover.py</code> 内 <code>backfill_from_evidence/backfill_observations</code></td><td>离线历史证据与在线执行共用一条累积管道，执行时增量积累</td></tr>
   </tbody>
 </table>
-
-<h2>3. 执行层三套可复用原语</h2>
-<div class="statgrid">
-  <div class="stat"><div class="num">A</div><div class="lbl">抓包API回放（后端）<br>逐端点选成功请求·字节级原样回放·断言</div></div>
-  <div class="stat"><div class="num">B</div><div class="lbl">ADB/UI 验证（前端）<br>dump→点入口→面板校验</div></div>
-  <div class="stat"><div class="num">C</div><div class="lbl">文档级 TC 批量<br>26条用例模板化生成 ExecutionPlan</div></div>
-  <div class="stat"><div class="num">3×</div><div class="lbl">证据体系<br>API 四件套 / ADB 三件套 / DB 三件套</div></div>
+<div class="card">
+  <h3 style="margin-top:0;">已落库知识树形态（反幻觉约束生效）</h3>
+  <pre class="flow">▸ [screen    ] 直播间 Room 14775
+  └─ [container] 红包入口   待开奖→COUNTDOWN · 可领取→OPEN · 已领取 · 已过期
+      └─ [container] 红包入口(面板内项目)  ← 同状态模型
+（在线现场动态 + 历史复现回填两端互补：历史 red_packet_entry 分支含"观测OPEN而业务待开奖"一致性冲突记录）</pre>
+  <p class="small">在线探索在模拟器上自证跑通；当屏幕无红包入口时，只诚实记录"Room + 未发现入口"，<strong>不伪造节点</strong>——这是探针区别于"拍脑袋 RPA"的反幻觉底线。</p>
 </div>
+<p>预计长期结构（Agent 最终能自动发现并逐层落库）：<code>Room → 红包入口 → 普通红包(待开奖/可领取) / 世界红包(待开奖/可领取)</code>。</p>
+
+<h2>3. 一致性攻击引擎 + 历史 Bug 反推（本轮新增）</h2>
+<h3>3.1 状态模型 → 触发条件 → 定向攻击路径</h3>
+<p>攻击模型以 JSON 定义（<code>projects/higo/attack/red_packet_claim.json</code>）：4 状态（WAITING/CLAIMING/COMPLETED/EXPIRED）× 业务映射（<code>status × open_at × server_time × ttl</code>）× UI 期望，外加一致性不变量与攻击路径 RP-001~RP-005。</p>
+<table>
+  <thead><tr><th>状态</th><th>status</th><th>时间条件</th><th>UI 期望</th></tr></thead>
+  <tbody>
+    <tr><td>WAITING 待开奖</td><td>3</td><td>server_time &lt; open_at</td><td>COUNTDOWN</td></tr>
+    <tr><td>CLAIMING 可领取</td><td>0</td><td>open_at ≤ server_time &lt; open_at+TTL</td><td>OPEN</td></tr>
+    <tr><td>COMPLETED 已领取</td><td>1</td><td>已领 / 领完</td><td>CLAIMED</td></tr>
+    <tr><td>EXPIRED 已过期</td><td>2</td><td>server_time ≥ open_at+TTL</td><td>EXPIRED</td></tr>
+  </tbody>
+</table>
 <ul>
-  <li><strong>原样回放：</strong><code>sign</code> 按 <code>h_ts+token+body</code> 的原始字节计算，回放固定用 <code>req_body_raw</code> 原始串走 <code>data=</code>，绝不重排/刷新 <code>h_ts</code>。</li>
-  <li><strong>不硬编码成功码：</strong>统一用 <code>CapturedAPI.is_success</code> 启发式，断言「复现抓包业务码」。</li>
-  <li><strong>两层断言（本轮改进）：</strong>协议层以 <code>status_code</code> 判定可达(pass)；业务码 <code>ret</code> 作为<strong>独立观测归因列</strong>，避免把后端防重放(-1)/限频(-101)等业务状态误判为产品缺陷。</li>
+  <li><strong>确定性验证：</strong><code>core/attack/consistency.py</code> 的 <code>check_consistency()</code> 判定 UI 显示状态 == 生命周期函数(业务态)，不依赖 LLM、可复现。</li>
+  <li><strong>历史 Bug 反推：</strong>面向"状态一致性"而非通用用例，从历史 Bug 模式（OPEN + CLAIM_NOT_STARTED）反推触发条件 → 定向攻击路径。</li>
 </ul>
 
-<h2>4. 本次真实批量回归成果（HIGO 发红包）</h2>
-
-<h3>4.1 冒烟验证（链路打通）</h3>
+<h3>3.2 真机复现：OPEN + 未开始领取（已留档）</h3>
 <table>
-  <thead><tr><th>回归条目</th><th>抓包业务码</th><th>回放实际</th><th>结论</th></tr></thead>
+  <thead><tr><th>项</th><th>证据</th></tr></thead>
   <tbody>
-    <tr><td>端点回放·成功样本</td><td>ret=1</td><td>ret=1</td><td><span class="tag ok">复现成功</span></td></tr>
-    <tr><td>端点回放·受限样本</td><td>ret=-101（频率限制）</td><td>ret=-101</td><td><span class="tag info">如实复现</span></td></tr>
-    <tr><td>TC-001 进房显示入口</td><td>—</td><td>2 断言通过</td><td><span class="tag ok">pass</span></td></tr>
-    <tr><td>TC-010 白名单权限发送</td><td>—</td><td>2 断言通过</td><td><span class="tag ok">pass</span></td></tr>
-    <tr><td>TC-018 金额分配一致性</td><td>—</td><td>3 断言通过（含 <code>$.data.status</code>）</td><td><span class="tag ok">pass</span></td></tr>
+    <tr><td>违规现象</td><td>期末状态并存：UI overlay 显示 <b>OPEN</b>(可开领引导)，业务态 <b>WAITING</b>(status=3, server_time&lt;open_at 未开始)</td></tr>
+    <tr><td>判定口径</td><td>期望 UI=COUNTDOWN，观测 UI=OPEN → <span class="tag bad">consistent=false</span></td></tr>
+    <tr><td>证据档</td><td><code>reproduce_report.json</code> + <code>reproduce_ui.xml</code> + <code>reproduce_screen.png</code></td></tr>
+    <tr><td>一致性不变量</td><td><code>ui_state == 生命周期函数(status, server_time, open_at)</code></td></tr>
   </tbody>
 </table>
 
-<h3>4.2 全量 26 条后端回归（两层断言后）</h3>
-<div class="statgrid">
-  <div class="stat"><div class="num good">26/26</div><div class="lbl">协议层通过<br><code>status_code=200</code> 接口全程可达</div></div>
-  <div class="stat"><div class="num danger">0</div><div class="lbl">误报的产品缺陷<br>业务状态码已独立归因，不混入 fail</div></div>
-  <div class="stat"><div class="num warn">26</div><div class="lbl">业务码观测 ret=-1<br>后端防重放/限频拒绝</div></div>
-  <div class="stat"><div class="num good">33+</div><div class="lbl">证据文件自动落盘<br>每用例 request/response/headers/execution</div></div>
-</div>
-<p><strong>关键发现：</strong>本次运行 26 条用例<b>业务码观测全部为 <code>ret=-1</code></b>（<code>reproduced=False</code>）。对照冒烟时前 5 条为 <code>ret=1</code>，说明<strong>连续批量回放同一 sign 的请求会触发后端防重放/限频</strong>，短窗口内同类请求统一被拒。这是真实的接口边界行为——协议层（可达、返回业务 JSON）全部正常，业务层由后端状态控制。系统本次完整识别并归类，而不是当作 21 条产品缺陷误报。</p>
-
-<h3>4.3 ADB/UI 前端验证</h3>
-<table>
-  <thead><tr><th>步骤</th><th>动作</th><th>结果</th><th>说明</th></tr></thead>
-  <tbody>
-    <tr><td>TC-BR-UI-001</td><td>dump 当前直播房间页</td><td><span class="tag ok">pass</span></td><td>设备在线、UI 层级可采集</td></tr>
-    <tr><td>TC-BR-UI-002</td><td>parse → input tap 红包/礼物入口</td><td><span class="tag ok">pass</span></td><td>已触达入口</td></tr>
-    <tr><td>TC-BR-UI-003</td><td>面板特征校验</td><td><span class="tag warn">未命中</span></td><td>当前房间该时刻未在发红包、无金币/红包面板特征（真实前端观测）</td></tr>
-  </tbody>
-</table>
-
-<h3>4.4 账号健康度巡检（方案2：素材库 + 自动巡检）</h3>
-<p>抓包库既是可执行回归素材，也是账号登记簿。巡检器自动回放每个账号的登录样本，判定授权可用性，并把发红包样本按 <code>mid</code>（<code>zyp</code> 明文）关联到账号。</p>
-<div class="statgrid">
-  <div class="stat"><div class="num good">9/9</div><div class="lbl">登录回放通过<br>每账号刷新到最新 token</div></div>
-  <div class="stat"><div class="num good">0</div><div class="lbl">孤儿发送样本<br>发红包样本均有归属账号</div></div>
-  <div class="stat"><div class="num">2</div><div class="lbl">发红包账号<br>77883(×6)、7788397(×13)</div></div>
-  <div class="stat"><div class="num warn">7</div><div class="lbl">有登录无发红包样本<br>可作未来素材补充</div></div>
-</div>
-<table>
-  <thead><tr><th>账号</th><th>状态</th><th>登录ret</th><th>发红包样本</th><th>最新token</th></tr></thead>
-  <tbody>
-    <tr><td>77883</td><td><span class="tag ok">ok</span></td><td>1</td><td>6</td><td><code>TaK0…</code></td></tr>
-    <tr><td>7788397</td><td><span class="tag ok">ok</span></td><td>1</td><td>13</td><td><code>T3K1…</code></td></tr>
-    <tr><td colspan="5" class="small">其余 7 账号登录均可用但无发红包样本（<code>no_send</code>）。产物 <code>output/evidence_account_health/account_health.json</code>。</td></tr>
-  </tbody>
-</table>
-
-<h3>4.5 红包优化需求 E2E 业务测试</h3>
-<p>针对「发红包优化」需求，用 <code>run_redpacket_e2e.py</code> 做一次端到端业务测试：Phase A 用真实抓包原样回放 <code>POST /live/room/send_red_packet</code>（coins=999, quantity=50, countdown=60）；Phase B 用 ADB+UI 从房间页 dump 下钻并验证红包发送面板。</p>
-<div class="statgrid">
-  <div class="stat"><div class="num good">PASS</div><div class="lbl">ADB+UI 下钻<br>dump→点红包入口→面板特征命中</div></div>
-  <div class="stat"><div class="num danger">FAIL</div><div class="lbl">API send_red_packet<br>ret=-11 token 过期(环境)</div></div>
-  <div class="stat"><div class="num">2/1</div><div class="lbl">Phase B 断言<br>UI dump + 下钻点击均 pass</div></div>
-  <div class="stat"><div class="num warn">环境</div><div class="lbl">归因非业务缺陷<br>旧 token 会话失效</div></div>
-</div>
-<table>
-  <thead><tr><th>阶段</th><th>步骤</th><th>实际</th><th>结论</th></tr></thead>
-  <tbody>
-    <tr><td>Phase A API</td><td>回放 send_red_packet</td><td><code>ret=-11 Authorization code error</code></td><td><span class="tag bad">会话失效</span> 脚本内硬编码旧 token 过期，非业务逻辑问题</td></tr>
-    <tr><td>Phase B UI-001</td><td>wakeup→dump 房间页</td><td>UI 层级可采集</td><td><span class="tag ok">pass</span></td></tr>
-    <tr><td>Phase B UI-002</td><td>parse→tap 红包入口(372,1566)→回 dump</td><td>已触达、面板特征命中</td><td><span class="tag ok">pass</span></td></tr>
-  </tbody>
-</table>
-<p><strong>归因结论：</strong>UI 链路（前端业务）验证通；API 层失败为 token 过期 <code>ret=-11</code>，系统如实识别为<strong>环境/会话失效</strong>而非产品缺陷——与第 4.4 节账号健康巡检相互印证（发送样本必须由新登录刷新 token 后回放）。产物 <code>output/evidence_higo_redpacket_e2e/execution_result.json</code>。</p>
-
-<h2>5. S6 分层测试决策（测试策略决策器）</h2>
-<p>在批量回归之上新增<strong>统一决策入口</strong>：给定"回归模式 + 待测业务点 + 风险等级"，先<strong>决策</strong>本次跑哪些层、跑多少，再<strong>分派</strong>给各层执行，最后<strong>聚合</strong>为一份统一报告。决策当前为<strong>确定性规则</strong>（可复现、无外部依赖），并预留 <code>llm_hook</code> 接口供后续接 LLM 动态决策。</p>
-
+<h2>4. 全景 QA 循环（认识 → 攻击 → 学习）</h2>
+<p><code>core/qa/cycle.py</code> 提供业务不可知的通用编排器，七阶段逐阶段标记 <code>wired/via/pending</code>；业务差异全部走 <code>QADriver</code> 接口注入（符合"Core 不含业务"分层约束）。</p>
 <div class="card">
-  <h3 style="margin-top:0;">闭环：决策器 → 分派器 → 聚合</h3>
-  <ul>
-    <li><code>orchestrator/strategy.py</code> —— <strong>决策器</strong>：输出 <code>TestPlan</code>（mode / target / layers / validation / rationale），决定业务/攻击/稳定三层开关与事件量。</li>
-    <li><code>orchestrator/delegate.py</code> —— <strong>分派器</strong>：按层执行（业务=抓包回放，攻击=本机可执行用例，稳定=状态感知随机），逐层产出 <code>LayerResult</code>。</li>
-    <li><code>orchestrator/run_strategy.py</code> —— <strong>CLI</strong>：<code>--mode smoke|regression|nightly</code>，产出 <code>output/plan.json</code> + <code>output/strategy/strategy_report.json</code> 统一报告。</li>
-  </ul>
+  <pre class="flow"><span class="good">[认识]</span>   S0/KB → system_facts          → wired（探索+capability）
+<span class="good">[建模]</span>   red_packet_claim.json(4状态) → wired
+<span class="good">[找风险]</span> 9 risks(5攻击向量+4历史)     → wired（+C 历史反推）
+<span class="good">[攻击]</span>   4 定向测试点(RP-001~004)      → wired（+B LLM 决策/原语编排）
+<span class="good">[验证]</span>   判真实违例 WAITING/OPEN        → wired（确定性 check_consistency）
+<span class="good">[回归]</span>   一致性回归 relive=2 breaks=2  → wired
+<span class="good">[学习]</span>   观测回填 KB + 历史追加(去重)   → wired</pre>
 </div>
+<p>开关全部<strong>默认关闭</strong>（<code>use_llm_attack / use_llm_risk / real_fact_extraction</code>），不引入默认成本/抖动；逐个开启即从确定性退化为 LLM 增强，且 LLM 失败自动回退，循环不中断。</p>
 
-<h3>5.1 决策矩阵（回归模式 → 各层参数）</h3>
-<table>
-  <thead><tr><th>模式</th><th>业务层</th><th>攻击层</th><th>稳定性层</th><th>归一判定（最低）</th></tr></thead>
-  <tbody>
-    <tr><td><span class="tag info">smoke</span></td><td>每端点回放代表探针(1条)</td><td>关闭</td><td>40 事件</td><td>业务通过率 ≥ 0.80</td></tr>
-    <tr><td><span class="tag info">regression</span></td><td>全量 TC 回放</td><td>可执行攻击 A01/A02/A05/A06/A07/A10</td><td>1000 事件</td><td>业务通过率 ≥ 0.90</td></tr>
-    <tr><td><span class="tag info">nightly</span></td><td>全量 TC 回放</td><td>可执行攻击全量</td><td>10000 事件(10万级目标)</td><td>业务通过率 ≥ 0.90</td></tr>
-  </tbody>
-</table>
-<p class="small">风险 > 风险等级 <code>high/critical</code> 时自动上调：稳定性事件量 <code>≥ 3000</code>、攻击覆盖上调；归一判定恒要求「稳定性崩溃数 = 0」、业务通过率达门槛、攻击可执行用例全部通过。</p>
-
-<h3>5.2 统一报告结构</h3>
-<table>
-  <thead><tr><th>字段</th><th>含义</th></tr></thead>
-  <tbody>
-    <tr><td><code>plan</code></td><td>决策快照（mode/target/layers/validation/rationale）</td></tr>
-    <tr><td><code>summary</code></td><td>三层开关、<code>n_run</code>/<code>n_pass</code>、状态</td></tr>
-    <tr><td><code>layers_on</code></td><td>本次实际启用的层</td></tr>
-    <tr><td><code>pass_rate</code> / <code>verdict</code></td><td>业务通过率 + 归一判定（PASS / WARN/GATED / FAIL）</td></tr>
-    <tr><td><code>gates</code></td><td>本次触发的一组门禁条件</td></tr>
-  </tbody>
-</table>
+<h2>5. LLM 三环：三个"越来越"</h2>
 <div class="statgrid">
-  <div class="stat"><div class="num">3</div><div class="lbl">测试层<br>业务 / 攻击 / 稳定</div></div>
-  <div class="stat"><div class="num">3</div><div class="lbl">回归模式<br>smoke / regression / nightly</div></div>
-  <div class="stat"><div class="num">1</div><div class="lbl">统一入口<br><code>run_strategy.py</code></div></div>
-  <div class="stat"><div class="num">1</div><div class="lbl">统一报告<br>strategy_report.json</div></div>
+  <div class="stat"><div class="num">A</div><div class="lbl">越来越完整系统事实<br>KB→LLM 注入，真实抽取</div></div>
+  <div class="stat"><div class="num">B</div><div class="lbl">越来越强执行能力<br>LLM 在可达原语上编排执行</div></div>
+  <div class="stat"><div class="num">C</div><div class="lbl">越来越多历史质量<br>历史记忆进找风险反推</div></div>
+  <div class="stat"><div class="num good">3/3</div><div class="lbl">闭环真实消费<br>非签名占位，已实测</div></div>
 </div>
 
-<h2>6. 架构演进：三层解耦 + 项目适配器</h2>
-<p>本轮把「测试引擎」与「项目配置/测试目标」正式解耦，确立<strong>通用引擎 + 项目适配器</strong>模型：Core 只做通用测试编排，不写任何具体项目业务；发红包/送礼/进语音房等业务动作全部下沉到项目适配器，换项目只加一套适配器 + 一份配置，不改 Core。</p>
+<h3>A. 系统事实注入（<code>core/qa/kb_facts.py</code> + 抽取/设计接参）</h3>
+<ul>
+  <li>KB 渲染为 LLM 可消费的 <code>system_facts</code>，每状态带反幻觉标记 <code>(实测)/(声明)</code>，如 <code>可领取: UI=OPEN (实测)</code>。</li>
+  <li><code>SkillEngine.run</code> 增 <code>extra_context</code> 独立分块追加到 system_prompt；<code>fact_extraction</code>/<code>test_design</code> 均接收 <code>kb_facts</code>。</li>
+  <li><strong>真实消费验证：</strong><code>real_fact_extraction=True</code> 下真调抽取模型，从 KB 简报抽出 <b>17 条结构化事实</b>（OBJECT/STATE/RELATION/CONDITION），"实测/声明"区分随入——System Prompt 长度 7324，含"额外系统上下文"权威事实块。</li>
+</ul>
 
-<h3>6.1 三层结构</h3>
-<div class="card"><p style="margin:0;" class="mono">
-Core&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← 通用测试引擎（<code>core/config/loader.py</code> 配置出入通道 + <code>core/adapters</code> 适配器接口/注册表）<br>
-Projects&nbsp;&nbsp;← 项目适配/配置（<code>config/</code> + <code>testdata/</code> + <code>projects/&lt;proj&gt;/adapters</code>）<br>
-Execution&nbsp;&nbsp;← 统一执行入口（<code>app/</code>，<code>python -m app</code>）
-</p></div>
+<h3>B. 可达原语编排执行（<code>core/attack/llm_advisor.py</code> + <code>QADriver.reachable_primitives/execute</code>）</h3>
+<ul>
+  <li>决策输入含<strong>真实可执行原语清单</strong>（Higo 4 条：open/dump/close/refresh red_packet），约束"只能从清单里编原语、不发明路径"。</li>
+  <li>决策输出 <code>selected_paths</code> + <code>per_path.primitives</code>；cycle 把原语序列交给 <code>driver.execute</code> 真执行、回读观测并入验证；设备/原语不可达时<strong>诚实返回 executed=False，绝不假点击</strong>。</li>
+  <li><strong>真 LLM 实测（42s）：</strong>模型发现路径动作 <code>refresh_state/close_popup</code> 不在清单后自纠错，改写映射到真实存在的 <code>refresh_red_packet_state/close_red_packet</code> 重新纳入 RP-003/004，并保住 RP-005（原语缺失→不选）。最终 4 条路径原语<strong>全部 ⊆ 可达清单（越界 0）</strong>。</li>
+</ul>
 
-<h3>6.2 适配器契约（Core 唯一的三个入口）</h3>
-<p>Core 只依赖 <code>execute_action() / get_state() / collect_evidence()</code>，返回通用 <code>ActionResult</code>；「什么叫 HIGO 红包」只存在于 <code>projects/higo/adapters</code>。registry 按项目配置声明的模块路径动态加载，Core 永不直接 import 具体项目。</p>
+<h3>C. 历史记忆进找风险（<code>core/qa/historical_memory.py</code>）</h3>
+<ul>
+  <li><code>render_historical_memory</code> 把 <code>historical.yaml</code> 渲成"已发生过的 bug"记忆块；<code>llm_augment_risks</code> 让 LLM 从历史规律泛化新风险。</li>
+  <li><strong>LLM 实测（27s / 3469 tok）：</strong>从历史违例反推出 <b>5 个新风险</b>（R-H-01 状态值异常 / R-H-02 状态转换边界 / R-H-03 状态同步 / R-H-04 状态覆盖 / R-H-05 状态持久化），真实引用历史 id，非模板套话。</li>
+</ul>
+
+<h3>历史质量库去重（本轮新增）</h3>
+<table>
+  <thead><tr><th>项</th><th>做法</th></tr></thead>
+  <tbody>
+    <tr><td>根因归类</td><td><code>violation_category</code>：BAD_STATUS_VALUE / UI_BUSINESS_MISMATCH / TRANSIENT / NO_LIVE_NUMBERS / OTHER</td></tr>
+    <tr><td>去重键</td><td><code>domain + room + observed_ui + 根因类别</code>（<strong>不用 phase 推断值</strong>，避免同根因拆散/重复膨胀）</td></tr>
+    <tr><td>存量清理</td><td><code>dedup_historical_file</code>：4 → 2 条（合并同根因）</td></tr>
+    <tr><td>增量防重</td><td>learn 追加同键跳过；再跑循环写回仍 2 条；幂等稳定（2→2）</td></tr>
+  </tbody>
+</table>
+
+<h2>6. 既有能力回看（v0.8，本轮未退化）</h2>
+<p>S1–S5 需求→用例、S6 批量回归、三层解耦（Core/Projects/Execution + 适配器）、三套可复用原语（抓包回放 / ADB-UI / DB）、两层断言、账号健康巡检、ADB-UI 方法论——均保持可用。本轮新增未改动这些链路（<code>use_llm_*</code> 默认关即完全兼容确定性回归）。</p>
 <div class="statgrid">
-  <div class="stat"><div class="num">3</div><div class="lbl">适配器入口<br>execute/get_state/collect_evidence</div></div>
-  <div class="stat"><div class="num good">0</div><div class="lbl">Core 中 HIGO 业务引用<br>已扫描确认清零</div></div>
-  <div class="stat"><div class="num">3</div><div class="lbl">业务能力<br>send_red_packet / send_gift / enter_voice_room</div></div>
-  <div class="stat"><div class="num">1</div><div class="lbl">统一入口<br><code>python -m app run --action &lt;动作&gt;</code></div></div>
+  <div class="stat"><div class="num good">26</div><div class="lbl">发红包回归用例<br>协议层可达，业务码独立归因</div></div>
+  <div class="stat"><div class="num good">3</div><div class="lbl">业务能力<br>send_red_packet / send_gift / enter_voice_room</div></div>
+  <div class="stat"><div class="num good">0</div><div class="lbl">Core 中 HIGO 业务引用<br>扫描确认清零</div></div>
+  <div class="stat"><div class="num">9/9</div><div class="lbl">账号登录回放<br>抓包库即账号登记簿</div></div>
 </div>
 
-<h3>6.3 配置/数据/凭证三分 + 凭证安全</h3>
-<table>
-  <thead><tr><th>类别</th><th>位置</th><th>内容</th></tr></thead>
-  <tbody>
-    <tr><td>环境配置</td><td><code>config/environments/higo-test.yaml</code></td><td>API 地址、设备、DB、请求头模板</td></tr>
-    <tr><td>项目定义</td><td><code>config/projects/higo.yaml</code></td><td>能力清单、testdata 目录、素材源、adapter 模块与动作声明</td></tr>
-    <tr><td>测试数据</td><td><code>testdata/higo/*.yaml</code></td><td>业务数据（room_id/coins/quantity…），可提交</td></tr>
-    <tr><td>敏感凭证</td><td><code>.env</code> + <code>*.auth.yaml</code></td><td>sign/token/mid 等，<strong>已 gitignore 不入库</strong>，仅经 loader 注入</td></tr>
-  </tbody>
-</table>
-
-<h3>6.4 统一 CLI 与业务动作实跑</h3>
-<p>三种能力均通过适配器经 <code>--action</code> 真机抓包回放验证（路径声明在项目配置，代码零硬编码）：</p>
-<table>
-  <thead><tr><th>业务动作</th><th>接口（assets 声明）</th><th>抓包 ret</th><th>回放 ret</th><th>HTTP</th><th>结论</th></tr></thead>
-  <tbody>
-    <tr><td>send_red_packet</td><td><code>/live/room/send_red_packet</code></td><td>1</td><td>—</td><td>200</td><td><span class="tag ok">Phase B UI 下钻 PASS</span>（API 因旧 token 记环境失效）</td></tr>
-    <tr><td>send_gift</td><td><code>/live/gift/send_gift</code></td><td>1</td><td>1</td><td>200</td><td><span class="tag ok">PASS · 复现</span></td></tr>
-    <tr><td>enter_voice_room</td><td><code>/live/room/join_v2</code></td><td>1</td><td>1</td><td>200</td><td><span class="tag ok">PASS · 复现</span></td></tr>
-  </tbody>
-</table>
-<p class="small">产物：<code>output/evidence/higo-send_gift/execution_result.json</code>、<code>output/evidence/higo-enter_voice_room/execution_result.json</code>，每动作 request/response/headers/execution 四件套证据齐全。</p>
-
-<h2>7. ADB-UI 自动业务方法论</h2>
-<p>从<strong>真机连续业务操作</strong>（如连发红包）实战中沉淀的一套可复用方法，落盘为 <code>execution/METHODOLOGY_ADB_UI.md</code>，供后续一切"通过 <code>uiautomator dump + input</code> 驱动的高重复连续 UI 业务"参考。</p>
-<div class="card good">
-  <h3 style="margin-top:0;">三条铁律</h3>
-  <ol>
-    <li><strong>动态定位，永不写死坐标</strong>——布局/分类/滚动随时变，必须 dump 后按 <code>resource-id</code>/<code>text</code> 解析再算中心点。</li>
-    <li><strong>失败自愈，不中断主循环</strong>——找不到控件/被弹窗遮挡/命令失败 → 清理 → 重试，而不是整轮崩掉。</li>
-    <li><strong>以业务成功次数为准，不信 UI 状态计数</strong>——房间角标等会波动/过期；改用「余额差额 = 发送数 × 单价」这类可核对外部信号验证。</li>
-  </ol>
-</div>
-<h3>标准业务循环（原子链路）</h3>
-<p><code>清非目标弹窗 → 开业务入口 → 切分类并轮询等渲染 → 动态定位目标 → 执行动作(Send) → 关结果弹窗 → 复位</code>，闭环后才开始下一轮。</p>
-<h3>可靠性清单（本机踩坑对照）</h3>
-<table>
-  <thead><tr><th>坑</th><th>对策</th></tr></thead>
-  <tbody>
-    <tr><td>adb dump 命令挂起 → 脚本永久卡死</td><td>所有 adb 调用加 <code>timeout</code> + 捕获异常返回空</td></tr>
-    <tr><td>找不到目标控件</td><td>轮询等面板加载、强制切分类、开头清遮挡弹窗</td></tr>
-    <tr><td>后台退出但一个没发</td><td>确认 <code>main()</code> 被调用、开行缓冲日志、异常打印 traceback</td></tr>
-    <tr><td>固定坐标点出错误界面</td><td>每次实时 dump 动态定位</td></tr>
-    <tr><td>角标"涨了又掉"、计数失真</td><td>overlay 是当前可领红包态（随过期回落），改用余额差额核算</td></tr>
-  </tbody>
-</table>
-
-<h2>8. 结论与建议下一步</h2>
+<h2>7. 结论与建议下一步</h2>
 <div class="card good">
   <h3 style="margin-top:0;">已确立的价值</h3>
   <ul>
-    <li><strong>效率：</strong>回放→断言→采证据→出结论全自动，一次回归只需 <code>python run_s6_execution.py</code>，省手工逐条核对。</li>
-    <li><strong>质量：</strong>协议层/业务层两层断言治理「误判」，如实区分成功(1)与业务状态码(-1/-101)，可追溯证据逐条落盘。</li>
-    <li><strong>发现力：</strong>暴露「批量回放同一请求触发后端防重放」这一真实边界，这是手工测试常忽略、却是回归该抓的信号。</li>
-    <li><strong>可扩展性：</strong>三层解耦 + 适配器后，新增项目只需 <code>projects/&lt;proj&gt;/adapters</code> + 一份 <code>config/projects/&lt;proj&gt;.yaml</code>，Core 与 app 零改动；业务动作与引擎彻底分离。</li>
+    <li><strong>探索力：</strong>Agent 能自主下钻、落库、记忆 App 结构；反幻觉约束保证"只记真的、不伪造节点"。</li>
+    <li><strong>发现力：</strong>一致性攻击引擎 + 历史 Bug 反推，真机复现"OPEN + 未开始领取"状态冲突并存档。</li>
+    <li><strong>自积累：</strong>LLM 三环让"系统事实 + 执行能力 + 历史质量"三个输入随运行越来越足，且执行→学习→回填 KB/历史形成持续闭环。</li>
+    <li><strong>可控成本：</strong>三个 LLM 开关默认关，退回确定性；LLM 失败自动兜底，不影响回归。</li>
   </ul>
 </div>
 <div class="card warn">
   <h3 style="margin-top:0;">已知局限</h3>
   <ul>
-    <li>26 条用例共用<strong>同一份抓包成功样本</strong>回放，遇后端防重放/限频会整体指向 <code>ret=-1</code>；要验证业务成功态，需冷却窗口或按用例换用抓包中不同的样本/token/数据。</li>
-    <li>ADB/UI 的「面板特征校验」依赖当前设备实况（是否有直播发红包），属<strong>现场观测</strong>而非确定性断言。</li>
+    <li>S0 的<strong>完整现场下钻</strong>依赖设备处于"直播间 + 屏幕有未开花红包入口"状态；当前多次只探到"Room + 未发现入口"便诚实停住，未伪造（反幻觉正确但覆盖受限）。</li>
+    <li>B 的 <code>execute()</code> 前置校验与不可达返回已就绪并通过离线验证，但<strong>现场真执行</strong>需设备就绪后才跑；待开奖→倒计时(COUNTDOWN)分支需"未来 open_at"红包场景。</li>
+    <li>A 抽取结果未给 <code>fact</code> 附加 <code>provenance</code>(声明/实测) 字段，声明节点与实测节点在抽取产物里暂区分粒度不足。</li>
   </ul>
 </div>
 <div class="card">
   <h3 style="margin-top:0;">建议下一步</h3>
   <ol>
-    <li><strong>按用例换样本：</strong>把「模块级复用同一样本」演进为「按 TC 类型从抓包选语义匹配、签名不同的样本」，绕过防重放，验证真正业务成功态。</li>
-    <li><strong>前端确定性：</strong>UI 面板校验改为「进入指定房间→主动触发展示红包/金币」的确定性动作链，弱化对设备实况的依赖。</li>
-    <li><strong>API 层换新 token：</strong>红包 E2E 的 Phase A 用账号健康巡检联动——发送前先用最新登录样本刷新 token 再回放，规避 <code>ret=-11</code> 会话失效。</li>
-    <li><strong>沉淀为定时回归：</strong>把 S6 挂入定时任务，产出日/夜跑回归报告，让「效率与质量」持续被量化。</li>
-    <li><strong>业务动作补前端判定：</strong>send_gift / enter_voice_room 目前为 API 抓包回放复现，可为每个动作追加 ADB/UI 层验证（沿用 ADB-UI 方法论），形成协议+前端双重证据。</li>
+    <li><strong>S0 定时探索：</strong>把 <code>run_qa_cycle</code> 挂成每日定时任务，让 KB + 历史 + 可达原语<strong>长期自动积累</strong>（回应"不是一次性跑完"）。</li>
+    <li><strong>补全现场分支：</strong>在"未来 open_at 红包"环境下补记 待开奖→COUNTDOWN 分支；B 真机执行闭环现场跑通。</li>
+    <li><strong>抽取溯源增强：</strong>给抽取到的 <code>fact</code> 补 <code>provenance</code>(声明/实测)，强化"显式事实 vs 推断事实"区分。</li>
+    <li><strong>可达原语扩充：</strong>把执行能力做成显式清单（capabilities.yaml：原语+前置条件+证据格式），让 LLM 探索/决策只从"真能执行"里挑——这才是"更强执行能力"的落点。</li>
   </ol>
 </div>
 
 <footer>
-  <p class="small">本期新增（架构解耦）：<code>core/adapters/</code>（接口 + 注册表）、<code>core/config/loader.py</code>（配置出入通道）、<code>projects/higo/adapters/</code>（HigoAdapter + redpacket/replay 能力）、<code>app/</code>（统一 CLI <code>python -m app</code>）；配置 <code>config/environments/higo-test.yaml</code>、<code>config/projects/higo.yaml</code>、<code>testdata/higo/*.yaml</code>；方法论 <code>execution/METHODOLOGY_ADB_UI.md</code>。历史模块：<code>orchestrator/*</code>（分层决策/分派/CLI）。</p>
-  <p class="small">数据来源：本轮真实执行产物——<code>output/evidence_batch_regression</code>、<code>output/evidence_smoke_higo</code>、<code>output/evidence_higo_redpacket_e2e</code>、<code>output/evidence/higo-send_gift</code>、<code>output/evidence/higo-enter_voice_room</code>、<code>output/evidence_account_health</code>、<code>output/execution_result.json</code>、<code>output/test_cases.json</code>。抓包目录 <code>D:/higo-api</code>（send_red_packet / send_gift / join_v2 等接口样本）。</p>
-  <p class="small">AI-Test-Agent · 测试效率与质量流水线 · 本文件为自包含单页 HTML，可离线分发。</p>
+  <p class="small">本期新增：<code>core/discovery/</code>（AppKnowledgeBase + AppExplorer + DiscoveredNode）、<code>projects/higo/adapters/discover.py</code>（HigoRedPacketDiscoverer + 回填管道）、<code>core/attack/consistency.py</code>（一致性引擎）、<code>core/attack/llm_advisor.py</code>（B 决策）、<code>core/qa/kb_facts.py</code>（A）、<code>core/qa/historical_memory.py</code>（C + 去重）、<code>core/qa/cycle.py</code>（七阶段编排 + QADriver 协议）、<code>projects/higo/adapters/qa_driver.py</code>（Higo 驱动：recognize/observe/backfill/reachable_primitives/execute）、<code>projects/higo/attack/red_packet_claim.json</code>、<code>knowledge/historical.yaml</code>、<code>output/app_kb/higo/</code>。</p>
+  <p class="small">数据来源：本轮真实执行/验证产物——<code>output/app_kb/higo/</code>（知识树）、<code>output/evidence/higo-repro-bug/reproduce_report.json/.ui.xml/.screen.png</code>、A 真抽取(17 facts)、B 真 LLM 决策(原语越界 0)、C 真 LLM 风险(5 条)、历史去重(4→2 幂等)。抓包目录 <code>D:/higo-api</code>。</p>
+  <p class="small">AI-Test-Agent · 探索型 AI 测试 Agent · 本文件为自包含单页 HTML，可离线分发。</p>
 </footer>
 
 </div>

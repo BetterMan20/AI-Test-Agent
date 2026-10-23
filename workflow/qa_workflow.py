@@ -104,6 +104,11 @@ class QAWorkflow:
         ctx.test_cases = self.generator.run(ctx.test_design)
         Output.save("test_cases.json", ctx.test_cases)
 
+        # 用例意图回填：test_design.json = 意图/风险/覆盖单一可信源（产物分层契约）
+        from workflow.case_intent import merge_case_intents
+        ctx.test_design = merge_case_intents(ctx.test_design, ctx.test_cases)
+        Output.save("test_design.json", ctx.test_design)
+
         # ==================================================
         # Stage 5: 用例评审 —— 校验 + 质量评审 + 发布门禁
         # ==================================================

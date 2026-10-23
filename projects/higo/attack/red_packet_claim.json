@@ -1,0 +1,86 @@
+{
+  "schema": "ai-test-agent/attack-path/v1",
+  "target": "red_packet_claim",
+  "source": "knowledge/历史bug截图/历史bug截图.png",
+  "bug_brief": "领取弹窗同时呈现两种互斥状态：UI 层显眼「OPEN」按钮（可点、引导点击），业务层提示「Red packet claiming hasn't started yet.」(CLAIM_NOT_STARTED)。",
+  "root_cause": "前端把「按钮/弹窗可领取态」与「业务生命周期态」解耦，未以 server_time vs open_at 为准绳做状态刷新；open_at 前就展示了 CLAIMING(OPEN) 的 UI。",
+
+  "api": {
+    "state":  { "path": "/live/room/get_red_packet_info", "role": "状态拉取" },
+    "claim":  { "path": "/live/room/recv_red_packet",       "role": "领取动作" }
+  },
+
+  "fields": {
+    "status":         "data.red_packet_info.status (生命周期态)",
+    "open_at":        "data.red_packet_info.open_at (ms, 领取开始时间)",
+    "server_time":    "data.server_time (ms, 服务端当前时间)",
+    "claimed_by_self":"data.red_packet_info.claimed_by_self (bool)"
+  },
+
+  "state_model": {
+    "WAITING":   { "status": 3, "condition": "server_time < open_at",                    "time_relation": "server_time<open_at",             "ui": "COUNTDOWN" },
+    "CLAIMING":  { "status": 0, "condition": "open_at <= server_time < open_at+TTL",     "time_relation": "server_time>=open_at",            "ui": "OPEN" },
+    "COMPLETED": { "status": 1, "condition": "claimed_by_self 或已领完",                  "time_relation": "any",                             "ui": "CLAIMED" },
+    "EXPIRED":   { "status": 2, "condition": "server_time >= open_at+TTL 且未领完",       "time_relation": "server_time_ge_open_at_plus_ttl", "ui": "EXPIRED" }
+  },
+
+  "consistency_invariant": {
+    "dimensions": ["status", "open_at", "server_time", "ui_state", "state_refresh"],
+    "must_hold": "ui_state == 生命周期函数(status, server_time, open_at) 且 (server_time >= open_at) ⇔ ui ∈ {OPEN, CLAIMED, EXPIRED}",
+    "violation": "UI 显示 {OPEN/CLAIMED/EXPIRED} 而业务 {status=3 WAITING}，即 OPEN 与 CLAIM_NOT_STARTED 并存"
+  },
+
+  "known_anomaly": {
+    "actual_ui": "OPEN",
+    "actual_business": "CLAIM_NOT_STARTED",
+    "semantics": "UI 认为可开领(OPEN)，业务认为未开始(CLAIM_NOT_STARTED)——两个互斥状态同时成立"
+  },
+
+  "attack_paths": [
+    {
+      "id": "RP-001",
+      "name": "未开始直接打开红包",
+      "priority": "P0",
+      "condition": "status=3 AND server_time < open_at",
+      "actions": ["open_red_packet"],
+      "expected": "COUNTDOWN",
+      "executable": true
+    },
+    {
+      "id": "RP-002",
+      "name": "open_at前1秒打开",
+      "priority": "P0",
+      "condition": "open_at - server_time = 1000ms",
+      "actions": ["open_red_packet"],
+      "expected": "COUNTDOWN",
+      "executable": true
+    },
+    {
+      "id": "RP-003",
+      "name": "到达open_at",
+      "priority": "P0",
+      "condition": "server_time >= open_at",
+      "actions": ["refresh_state", "open_red_packet"],
+      "expected": "OPEN",
+      "executable": true
+    },
+    {
+      "id": "RP-004",
+      "name": "关闭后重新打开",
+      "priority": "P0",
+      "condition": "status=3 AND server_time < open_at",
+      "actions": ["open_red_packet", "close_popup", "open_red_packet"],
+      "expected": "COUNTDOWN",
+      "executable": true
+    },
+    {
+      "id": "RP-005",
+      "name": "网络中断",
+      "priority": "P2",
+      "actions": ["network_off", "network_on"],
+      "expected": "状态正确恢复",
+      "executable": false,
+      "reason": "当前没有NetworkExecutor；且系统级断网会打穿脆弱测试承载，已停用"
+    }
+  ]
+}

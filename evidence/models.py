@@ -16,6 +16,7 @@ class EvidenceType(str, Enum):
     LOGCAT = "logcat"
     API_RESPONSE = "api_response"
     DB_SNAPSHOT = "db_snapshot"
+    APPIUM_SNAPSHOT = "appium_snapshot"
     TEXT = "text"
 
 

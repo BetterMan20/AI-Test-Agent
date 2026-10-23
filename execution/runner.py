@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Any
+
+# 支持 `python execution/runner.py`（脚本方式）与 `python -m execution.runner`（模块方式）
+# 两种调用：脚本方式下 sys.path 只有 execution/，这里把项目根补进去才能 import execution.*
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from execution.context import ExecutionContext
 from execution.exceptions import ToolError
@@ -22,6 +30,7 @@ class ExecutionRunner:
         api_client: Any | None = None,
         db_client: Any | None = None,
         adb_client: Any | None = None,
+        appium_client: Any | None = None,
         evidence_collector: Any | None = None,
         verifier: type[RuleVerifier] = RuleVerifier,
     ):
@@ -29,9 +38,11 @@ class ExecutionRunner:
             "api": api_client,
             "db": db_client,
             "adb": adb_client,
+            "appium": appium_client,
         }
         self._evidence = evidence_collector
         self._verifier = verifier
+        self._appium_session = False
 
     def run_plan(
         self, plan: ExecutionPlan, context: ExecutionContext
@@ -172,7 +183,72 @@ class ExecutionRunner:
         if step.step_type == "adb":
             return tool.shell(action.get("command", ""))
 
+        if step.step_type == "appium":
+            return self._dispatch_appium(tool, action)
+
         return None
+
+    def _dispatch_appium(self, ctl: Any, action: dict[str, Any]) -> Any:
+        """分派 Appium UI 业务操作，统一返回操作后的 page_source（供 text_contains 断言）。
+
+        支持 operation:
+          session_start / session_close / page_source / tap / input_text
+          find / find_text / find_desc / tap_point / swipe / back
+        """
+        op = action.get("operation", "page_source")
+        timeout = float(action.get("timeout", 10))
+
+        if op == "session_start":
+            ctl.start_server()
+            ctl.start_session(app_activity=action.get("app_activity"))
+            self._appium_session = True
+            return "session_started"
+
+        if op == "session_close":
+            ctl.close_session()
+            self._appium_session = False
+            return "session_closed"
+
+        # 其余 UI 操作：确保会话就绪
+        self._ensure_appium(ctl)
+
+        if op == "page_source":
+            return ctl.page_source()
+        if op == "tap":
+            ctl.tap(action.get("target", ""), timeout)
+        elif op == "tap_by_keyword":
+            ctl.tap_by_keyword(action.get("keyword", ""), timeout)
+        elif op == "input_text":
+            ctl.input_text(action.get("target", ""), action.get("text", ""))
+        elif op == "find":
+            ctl.find(action.get("target", ""), timeout)
+        elif op == "find_text":
+            ctl.find_text(action.get("text", ""), timeout)
+        elif op == "find_desc":
+            ctl.find_desc(action.get("desc", ""), timeout)
+        elif op == "tap_point":
+            ctl.tap_point(float(action.get("x", 0)), float(action.get("y", 0)))
+        elif op == "swipe":
+            s = action.get("swipe") or [0, 0, 0, 0, 300]
+            ctl.swipe(*[float(v) for v in s[:5]])
+        elif op == "back":
+            ctl.back()
+        else:
+            raise ToolError("appium", f"Unknown appium operation: {op}")
+
+        # 操作后回吐页面快照，断言 / 证据都依赖它
+        try:
+            return ctl.page_source()
+        except Exception:
+            return ""
+
+    def _ensure_appium(self, ctl: Any) -> None:
+        """首次用到 UI 操作时懒启动 server + session。"""
+        if self._appium_session:
+            return
+        ctl.start_server()
+        ctl.start_session()
+        self._appium_session = True
 
     def _resolve_action(
         self, action: dict[str, Any], context: ExecutionContext
@@ -238,9 +314,27 @@ class ExecutionRunner:
                         self._tools["adb"], context.tc_id, step.step_id
                     )
                     refs.append(ev.path)
+                elif etype == "appium_snapshot" and step.step_type == "appium" and output is not None:
+                    evidences = self._evidence.collect_appium_evidence(
+                        step.action, output, context.tc_id, step.step_id,
+                        execution_meta,
+                    )
+                    refs.extend(ev.path for ev in evidences)
             except Exception:
                 pass
         return refs
+
+    def close(self) -> None:
+        """释放 Appium 会话/服务（若已由本引擎启动）。"""
+        ctl = self._tools.get("appium")
+        if ctl is None:
+            return
+        if self._appium_session:
+            try:
+                ctl.close_session()
+            except Exception:
+                pass
+            self._appium_session = False
 
     def _verify(
         self, step: ExecutionStep, output: Any
@@ -290,3 +384,102 @@ class ExecutionRunner:
         if isinstance(output, str):
             return output[:2000]
         return output
+
+
+if __name__ == "__main__":
+    """CLI 入口：真正执行 API/DB/ADB 步骤并采证+验证，打印可读汇总。
+
+    本文件是执行库类；直接运行它时，复用 S6 批量回归(retry 用的同一套
+    ExecutionRunner + 客户端 + 证据采集)来产出可见结果，避免静默退出。
+
+    用法:
+        python execution/runner.py [capture_dir] [endpoint_substring] [device_serial]
+    默认: D:/higo-api  send_red_packet  (evidence输出: output/evidence_batch_regression)
+    """
+    import argparse
+    import shutil
+    import subprocess
+    from execution.batch_regression import RegressionConfig, run_batch_regression
+
+    def _abs(p: str, base: str = _PROJECT_ROOT) -> str:
+        """把相对路径锚定到项目根，避免依赖运行时工作目录(cwd)。"""
+        q = os.path.realpath(os.path.join(base, p)) if not os.path.isabs(p) else os.path.realpath(p)
+        return q
+
+    def _resolve_device(serial: str) -> tuple[str, bool, bool]:
+        """解析设备：给了 serial 直接用；否则查 adb——恰好一台用它，
+        零台或多台则禁用 ADB/UI 步骤(仍跑 API/DB)，并附提示。返回 (serial, adb_verify, ui_flow)。"""
+        if serial:
+            return serial, True, True
+        try:
+            if shutil.which("adb") is None:
+                return "", False, False
+            out = subprocess.run(["adb", "devices"], capture_output=True, text=True,
+                                 timeout=15).stdout or ""
+            serials = [ln.split()[0] for ln in out.splitlines()[1:]
+                       if ln.strip() and "device" in ln.split()[-1]]
+            if len(serials) == 1:
+                return serials[0], True, True
+            if len(serials) > 1:
+                print("!! 检测到多台 ADB 设备，未自动选择。请指定 device_serial 以启用 ADB/UI 步骤：")
+                for s in serials:
+                    print("    adb -s", s)
+                return "", False, False
+            return "", False, False
+        except Exception:
+            return "", False, False
+
+    _ap = argparse.ArgumentParser(description="执行 ExecutionPlan 的 API/DB/ADB/Appium 步骤，采证+验证")
+    _ap.add_argument("capture_dir", nargs="?", default=_abs("D:/higo-api"))
+    _ap.add_argument("endpoint_substring", nargs="?", default="send_red_packet")
+    _ap.add_argument("device_serial", nargs="?", default="")
+    _ap.add_argument("--tc-field", default=f"{_abs('output/test_cases.json')}#test_cases")
+    _ap.add_argument("--plan-file", default="",
+                     help="直读汇聚计划 execution_plan.json（planner --all 产物），跳过 TC→Plan 派生")
+    _ap.add_argument("--evidence-root", default=_abs("output/evidence_batch_regression"))
+    _ap.add_argument("--appium", dest="appium", action="store_true",
+                     help="用 Appium 做 UI 业务自动化（替换 ADB dump 面板步骤），按关键词下钻红包/礼物入口→发送面板")
+    _ap.add_argument("--appium-panel-kw", default=None,
+                     help="覆盖 Appium 面板断言关键词（默认 send|发送|coin|金币|confirm|发红包）")
+    _args = _ap.parse_args()
+
+    _serial, _adb_verify, _ui_flow = _resolve_device(_args.device_serial)
+    if _args.device_serial and _args.device_serial != _serial:
+        _serial = _args.device_serial
+    _adb_verify = bool(_serial)
+    _ui_flow = bool(_serial)
+    print(f">> 设备解析: serial={_serial or '(无，ADB/UI 步骤已禁用)'} "
+          f"adb_verify={_adb_verify} ui_flow={_ui_flow} appium={_args.appium}", flush=True)
+
+    _report, _path, _ = run_batch_regression(RegressionConfig(
+        capture_dir=_args.capture_dir,
+        endpoint_substring=_args.endpoint_substring,
+        tc_field=_args.tc_field,
+        plan_file=_args.plan_file,
+        device_serial=_serial,
+        evidence_root=_args.evidence_root,
+        adb_verify=_adb_verify,
+        ui_flow=_ui_flow,
+        appium_flow=_args.appium,
+        **({"appium_panel_keyword": _args.appium_panel_kw}
+           if _args.appium_panel_kw else {}),
+    ))
+    print("\n========== S6 批量回归 汇总 ==========", flush=True)
+    print(json.dumps(_report.summary, ensure_ascii=False, indent=2))
+    print(f"报告: {_path}", flush=True)
+
+    # 最后一公里：聚合原始数据 → 人读 HTML + 机读 Release Gate + 人工核查清单
+    from execution.report import aggregate_report, GATE_NO_GO
+    _agg = aggregate_report(_path)
+    _g = _agg["gate"]["gate"]
+    print(f"\n===== Release Gate: {_g} =====", flush=True)
+    for _r in _agg["gate"]["reasons"]:
+        print("  -", _r, flush=True)
+    if _agg["defects"]:
+        print(f"缺陷草稿 {len(_agg['defects'])} 份（待人工确认）→ output/defects/", flush=True)
+    print("\n人工核查清单:", flush=True)
+    for _i, _c in enumerate(_agg["checklist"], 1):
+        print(f"  {_i}. {_c}", flush=True)
+    print(f"\n人读报告: {_agg['html']}", flush=True)
+    print(f"机读决策: {_agg['gate_json']}", flush=True)
+    raise SystemExit(1 if _g == GATE_NO_GO else 0)

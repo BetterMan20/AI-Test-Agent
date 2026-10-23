@@ -37,6 +37,17 @@
       "items": {
         "type": "string"
       }
+    },
+    "traceability": {
+      "type": "object",
+      "description": "回溯到意图层（test_design.json / test_cases.json）的引用，保证计划可复核可追溯",
+      "properties": {
+        "test_point_id": { "type": "string" },
+        "scenario_ref": { "type": "string" },
+        "source_facts": { "type": "array", "items": { "type": "string" } },
+        "related_gaps": { "type": "array", "items": { "type": "string" } },
+        "priority": { "type": "string" }
+      }
     }
   },
   "$defs": {
@@ -59,6 +70,7 @@
             "api",
             "db",
             "adb",
+            "appium",
             "manual"
           ]
         },
@@ -84,6 +96,7 @@
               "logcat",
               "api_response",
               "db_snapshot",
+              "appium_snapshot",
               "text"
             ]
           }
@@ -149,6 +162,28 @@
             "properties": {
               "config": {
                 "$ref": "#/$defs/adb_config"
+              }
+            },
+            "required": [
+              "config"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "appium"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "$ref": "#/$defs/appium_config"
               }
             },
             "required": [
@@ -266,6 +301,46 @@
           "type": "string",
           "minLength": 1
         }
+      }
+    },
+    "appium_config": {
+      "type": "object",
+      "required": [
+        "operation"
+      ],
+      "properties": {
+        "operation": {
+          "type": "string",
+          "enum": [
+            "session_start",
+            "session_close",
+            "page_source",
+            "tap",
+            "tap_by_keyword",
+            "input_text",
+            "find",
+            "find_text",
+            "find_desc",
+            "tap_point",
+            "swipe",
+            "back"
+          ]
+        },
+        "target": { "type": "string", "description": "resource-id（可省略包名前缀）" },
+        "keyword": { "type": "string", "description": "tap_by_keyword 的匹配正则（resource-id/text/desc）" },
+        "text": { "type": "string" },
+        "desc": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "swipe": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 5,
+          "description": "[x1,y1,x2,y2,duration_ms]"
+        },
+        "timeout": { "type": "number" },
+        "app_activity": { "type": "string" }
       }
     },
     "assertion": {
