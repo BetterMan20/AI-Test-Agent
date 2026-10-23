@@ -1,0 +1,11 @@
+# A 项目 · 测试环境
+api:
+  base_url: "https://test-api.miregame.com"
+  timeout: 60
+  headers: {}
+
+device:
+  serial: "e5c839cf"  # vivo V2020CA 真机（arm64）；emulator-5554=MuMu x86_64 转译白屏不可用
+  wake_commands: []
+
+db: {}
