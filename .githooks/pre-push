@@ -1,0 +1,23 @@
+#!/bin/sh
+# 推送前全量扫描：工作区 + 全历史 + .env 反查。发现疑似密钥则阻止推送。
+# 启用方式：powershell -File scripts/install_hooks.ps1
+
+ROOT=$(git rev-parse --show-toplevel)
+PY="$ROOT/.venv/Scripts/python.exe"
+
+if [ ! -x "$PY" ]; then
+    PY=$(command -v python3 || command -v python)
+fi
+
+if [ -z "$PY" ]; then
+    echo "[secret-scan] 未找到 Python，跳过扫描" >&2
+    exit 0
+fi
+
+echo "[secret-scan] 推送前全量扫描（工作区 + 历史 + .env 反查）..."
+"$PY" "$ROOT/scripts/secret_scan.py" || {
+    echo ""
+    echo "[secret-scan] 已阻止推送：发现疑似敏感信息。" >&2
+    echo "[secret-scan] 确认是误报请修正该值或加入白名单；确实是密钥请先轮换再清理历史。" >&2
+    exit 1
+}

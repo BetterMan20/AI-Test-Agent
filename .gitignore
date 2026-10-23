@@ -29,3 +29,19 @@ _seat_samples.json
 .pytest_cache/
 .tmp/
 scratch/
+
+# 密钥 / 证书 / 私钥（严禁入库）
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.ppk
+id_rsa*
+id_ed25519*
+.env.*
+!.env.example
+
+# 运行日志（可能夹带请求头 / token）
+*.log

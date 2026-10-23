@@ -1,0 +1,17 @@
+#!/bin/sh
+# 提交前拦截：只扫暂存区，发现疑似密钥直接阻断提交。
+# 启用方式：powershell -File scripts/install_hooks.ps1
+
+ROOT=$(git rev-parse --show-toplevel)
+PY="$ROOT/.venv/Scripts/python.exe"
+
+if [ ! -x "$PY" ]; then
+    PY=$(command -v python3 || command -v python)
+fi
+
+if [ -z "$PY" ]; then
+    echo "[secret-scan] 未找到 Python，跳过扫描（请安装 Python 或启用 .venv）" >&2
+    exit 0
+fi
+
+exec "$PY" "$ROOT/scripts/secret_scan.py" --staged

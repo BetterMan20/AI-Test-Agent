@@ -32,6 +32,18 @@ MODEL=glm-4.5-air
 
 `config.py` 只是把它们读进来（`load_dotenv`），**换模型直接改 `.env`，不用动代码**。
 
+### 1.1 密钥与安全
+
+- 密钥只写 `.env`（模板见 `.env.example`）；账号库 / 登录样本放 `secrets/`。两者均已 gitignore。
+- 克隆仓库后启用钩子（提交前拦截 + 推送前全量扫描）：
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/install_hooks.ps1
+  ```
+
+- 手动自检：`.venv\Scripts\python.exe scripts\secret_scan.py`
+- 数据分级、审计结论与泄漏处置流程见 [SECURITY.md](../SECURITY.md)。
+
 ---
 
 ## 2. 目录结构总览
